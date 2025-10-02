@@ -816,7 +816,7 @@ export default function ConstructionView() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            Obras de Construcción
+            Cambio Sergio
           </h2>
           <p className="text-gray-600 mt-1">
             Gestiona y supervisa todos los proyectos de construcción
