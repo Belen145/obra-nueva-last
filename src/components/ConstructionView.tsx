@@ -67,6 +67,7 @@ export default function ConstructionView() {
   const [modalServiceTypeStatuses, setModalServiceTypeStatuses] = useState<
     any[]
   >([]);
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
 
   // Cargar los estados del tipo de servicio para el modal
   useEffect(() => {
@@ -278,12 +279,65 @@ export default function ConstructionView() {
           </div>
         );
       } else {
+        const isExpanded = expandedComments.has(service.id);
+        const commentRef = React.useRef<HTMLParagraphElement>(null);
+        const [showReadMore, setShowReadMore] = React.useState(false);
+
+        React.useEffect(() => {
+          if (commentRef.current) {
+            // Verificar si el contenido excede 72px de altura
+            setShowReadMore(commentRef.current.scrollHeight > 72);
+          }
+        }, [service.comment]);
+
+        const toggleCommentExpansion = () => {
+          setExpandedComments(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(service.id)) {
+              newSet.delete(service.id);
+            } else {
+              newSet.add(service.id);
+            }
+            return newSet;
+          });
+        };
+
         return (
           <div className="bg-zen-grey-100 rounded p-3">
             {service.comment ? (
-              <p className="text-sm text-zen-grey-700 whitespace-pre-wrap">
-                {service.comment}
-              </p>
+              <div className="flex flex-col gap-2">
+                {/* Header con icono ChatDots y título */}
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-zen-grey-600" viewBox="0 0 16 16" fill="currentColor">
+                    <use href="/icons.svg#chat-dots" />
+                  </svg>
+                  <span className="text-sm font-semibold text-zen-grey-600">Observaciones</span>
+                </div>
+
+                {/* Texto del comentario truncado o expandido */}
+                <p
+                  ref={commentRef}
+                  className="text-sm text-zen-grey-600 overflow-hidden"
+                  style={{ maxHeight: isExpanded ? 'none' : '72px' }}
+                >
+                  {service.comment}
+                </p>
+
+                {/* Botón "Leer más/menos" alineado a la derecha - solo si el texto excede 72px */}
+                {showReadMore && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={toggleCommentExpansion}
+                      className="text-sm text-zen-blue-500 font-semibold flex items-center gap-1 hover:text-zen-blue-600 transition-colors"
+                    >
+                      {isExpanded ? 'Leer menos' : 'Leer más'}
+                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                        <use href="/icons.svg#arrow-small" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-zen-grey-500 italic">
                 No hay observaciones para este servicio
