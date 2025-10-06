@@ -43,6 +43,7 @@ export default function ConstructionView() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showWizard, setShowWizard] = useState<boolean>(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState<boolean>(false);
   const [expandedConstruction, setExpandedConstruction] = useState<
     number | null
   >(null);
@@ -86,6 +87,28 @@ export default function ConstructionView() {
     };
     if (showDocumentUploadModal?.isOpen) fetchStatuses();
   }, [showDocumentUploadModal]);
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    if (!isStatusDropdownOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown-container]')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    // Pequeño delay para evitar que el click de apertura cierre inmediatamente
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isStatusDropdownOpen]);
 
   // ...existing code...
 
@@ -192,7 +215,7 @@ export default function ConstructionView() {
   /**
    * Fila expandible que muestra los servicios asociados a una obra.
    */
-  const ServiceRow = ({ constructionId }: { constructionId: number }) => {
+  const ServiceRow = ({ constructionId, construction }: { constructionId: number; construction: any }) => {
     // Estado para controlar el menú de acciones de cada servicio
     const [openMenuServiceId, setOpenMenuServiceId] = useState<number | null>(
       null
@@ -207,55 +230,66 @@ export default function ConstructionView() {
     }, [openMenuServiceId]);
     // Renderiza el bloque de comentarios según el status
     const renderServiceComments = (service: any) => {
+      // Banner gris informativo para estados finales
+      if (service.services_status?.is_final === true) {
+        return (
+          <div className="bg-zen-grey-100 border border-zen-grey-300 rounded p-3 flex gap-2">
+            <svg className="w-4 h-4 text-zen-grey-400 shrink-0 mt-0.5" viewBox="0 0 13 13" fill="currentColor">
+              <use href="/icons.svg#info" />
+            </svg>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-zen-grey-700">
+                Has eliminado este suministro
+              </p>
+              <p className="text-sm text-zen-grey-700">
+                El suministro ya no está disponible y no podrás gestionarlo. Para cualquier duda, escríbenos a atencion.cliente@zenovapro.com
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       if (service.status_id === 1) {
         return (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-blue-900 mb-3">
-                Para iniciar la gestión del suministro es obligatorio subir la
-                documentación
-              </h3>
-              <p className="text-blue-700 mb-4">
-                Haz clic en el botón "Subir documentos" para cargar los archivos
-                necesarios
+          <div className="bg-zen-warning-50 border border-zen-warning-400 rounded p-3 flex gap-2">
+            <AlertCircle className="w-4 h-4 text-zen-warning-700 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-zen-warning-950">
+                Para continuar con la gestión del suministro debes aportar toda la documentación necesaria.
+              </p>
+              <p className="text-sm text-zen-warning-950">
+                Haz clic en el botón "Subir documentos" para cargar los archivos necesarios.
               </p>
             </div>
           </div>
         );
       } else if (service.status_id === 19) {
         return (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-yellow-900 mb-3">
+          <div className="bg-zen-blue-50 border border-zen-blue-200 rounded p-3 flex gap-2">
+            <AlertCircle className="w-4 h-4 text-zen-blue-600 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-zen-blue-900">
                 Tus documentos están siendo revisados
-              </h3>
-              <p className="text-yellow-700 mb-4">
-                Si todo es correcto, avanzaremos automáticamente con la gestión
-                del suministro
+              </p>
+              <p className="text-sm text-zen-blue-700">
+                Si todo es correcto, avanzaremos automáticamente con la gestión del suministro
               </p>
             </div>
           </div>
         );
       } else {
         return (
-          <>
-            <div className="flex items-center mb-3">
-              <h5 className="text-sm font-medium text-gray-700">
-                Observaciones
-              </h5>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 h-32 overflow-y-auto">
-              {service.comment ? (
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {service.comment}
-                </p>
-              ) : (
-                <p className="text-sm text-gray-500 italic">
-                  No hay observaciones para este servicio
-                </p>
-              )}
-            </div>
-          </>
+          <div className="bg-zen-grey-100 rounded p-3">
+            {service.comment ? (
+              <p className="text-sm text-zen-grey-700 whitespace-pre-wrap">
+                {service.comment}
+              </p>
+            ) : (
+              <p className="text-sm text-zen-grey-500 italic">
+                No hay observaciones para este servicio
+              </p>
+            )}
+          </div>
         );
       }
     };
@@ -380,13 +414,13 @@ export default function ConstructionView() {
     };
 
     return (
-      <tr>
-        <td colSpan={7} className="px-6 py-4 bg-gray-50">
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-900 flex items-center">
+      <tr className="desplegable w-full">
+        <div className="mt-[-20px]">
+          <div className="bg-zen-grey-50 py-6 rounded-lg p-[18px] ">
+            {/* <h4 className="text-sm font-medium text-zen-grey-950 flex items-center mb-4">
               <Settings className="w-4 h-4 mr-2" />
               Servicios de la Obra
-            </h4>
+            </h4> */}
 
             {servicesLoading ? (
               <div className="flex items-center justify-center py-4">
@@ -408,31 +442,24 @@ export default function ConstructionView() {
                 </div>
               </div>
             ) : constructionServices.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {constructionServices.map((service) => (
                   <div
                     key={service.id}
-                    className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm"
+                    className="bg-zen-grey-25 border border-zen-grey-300 rounded-lg overflow-hidden"
                   >
-                    {/* Service Header */}
-                    <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                            <Settings className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-semibold text-gray-900">
-                              {service.service_type?.name ||
-                                `Servicio ${service.type_id}`}
-                            </h4>
-                            {service.comment && (
-                              <p className="text-sm text-gray-500">
-                                {service.comment}
-                              </p>
-                            )}
-                          </div>
+                    {/* Header de la card con ID de construcción */}
+                    <div className="bg-zen-grey-25 border-b border-zen-grey-300 px-4 py-3 flex items-center justify-between">
+                      <div className="flex flex-col gap-0">
+                        <div className="flex items-center gap-1">
+                          <svg className="w-4 h-4 text-zen-grey-500" viewBox="0 0 12 13" fill="currentColor">
+                            <use href="/icons.svg#services" />
+                          </svg>
+                          <span className="text-sm text-zen-grey-600">Obra Nueva</span>
                         </div>
+                        <h3 className="text-[19px] font-semibold text-zen-grey-950 leading-[1.35]">
+                          ID {construction.id}
+                        </h3>
                       </div>
                       {/* Menú de acciones (tres puntos) */}
                       <div className="relative">
@@ -470,6 +497,17 @@ export default function ConstructionView() {
                         )}
                       </div>
                     </div>
+
+                    {/* Contenido de la card con el servicio */}
+                    <div className="bg-zen-grey-25 p-4 flex">
+                      {/* Sección izquierda: Info del servicio */}
+                      <div className="flex-1 px-2">
+                        {/* Nombre del servicio */}
+                        <div className="bg-zen-grey-50 rounded px-2 py-1 inline-flex items-center gap-1 mb-2">
+                          <h4 className="text-base font-semibold text-zen-grey-950">
+                            {service.service_type?.name || `Servicio ${service.type_id}`}
+                          </h4>
+                        </div>
 
                     {/* Timeline Progress */}
                     {!statusesLoading &&
@@ -518,13 +556,9 @@ export default function ConstructionView() {
                           service.services_status?.is_final === true;
                         if (isFinalStatus) {
                           return (
-                            <div className="grid grid-cols-2 gap-6 mb-6">
-                              {/* Banner - Left Half */}
-                              <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-center justify-center">
-                                {renderStatusBanner(service)}
-                              </div>
-                              {/* Comments Section - Right Half */}
-                              <div>{renderServiceComments(service)}</div>
+                            <div>
+                              {/* Left Section: Service name + status tag */}
+                              <div className="flex gap-2 items-start"></div>
                             </div>
                           );
                         }
@@ -539,14 +573,14 @@ export default function ConstructionView() {
                           }
                         }
                         return (
-                          <div className="grid grid-cols-2 gap-6 mb-6">
-                            {/* Timeline Section - Left Half */}
-                            <div>
+                          <div>
+                            {/* Timeline Section - Full Width */}
+                            <div className="w-full">
                               <div className="flex items-center justify-between mb-3">
-                                <h5 className="text-sm font-medium text-gray-700">
+                                {/* <h5 className="text-sm font-medium text-gray-700">
                                   Progreso del Servicio
-                                </h5>
-                                <span className="text-xs text-gray-500">
+                                </h5> */}
+                                {/* <span className="text-xs text-gray-500">
                                   {getCurrentServiceTypeStatusIndex(
                                     trackerStatusId,
                                     service.type_id
@@ -557,7 +591,7 @@ export default function ConstructionView() {
                                       service.type_id
                                     ).length
                                   }
-                                </span>
+                                </span> */}
                               </div>
                               {/* Responsive Horizontal Timeline */}
                               <div className="relative w-full pb-4">
@@ -680,40 +714,31 @@ export default function ConstructionView() {
                                 </div>
                               </div>
                             </div>
-                            {/* Comments Section - Right Half */}
-                            <div>{renderServiceComments(service)}</div>
                           </div>
                         );
                       })()}
 
-                    {/* Current Status Badge */}
-                    <div className="flex items-center justify-start">
-                      <div className="flex items-center mr-6">
-                        <span
-                          className={`px-3 py-1 text-sm font-medium rounded-full ${
-                            service.services_status?.is_final
-                              ? 'bg-red-100 text-red-800'
-                              : service.services_status?.name ===
-                                'Recopilación De documentación'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : service.services_status?.name ===
-                                'Cliente realiza la gestión'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {service.service_type?.name ||
-                            `Servicio ${service.type_id}`}
-                        </span>
-                        <span className="ml-3 text-sm text-gray-600">
-                          {service.services_status?.name || 'Sin estado'}
-                        </span>
+                        {/* Current Status Badge */}
+                        <div className={`bg-zen-grey-50 rounded px-2 py-1 inline-flex items-center gap-2 border border-zen-grey-200 ${service.services_status?.is_final ? 'mt-0' : 'mt-8'}`}>
+                          <span className="text-xs text-zen-grey-600">
+                            {service.services_status?.name || 'Sin estado'}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Botón Subir documentos si requiere acción del usuario */}
-                      {service.services_status?.requires_user_action &&
-                        !service.services_status?.is_final && (
-                          <div className="flex space-x-2">
+                      {/* Separador vertical */}
+                      <div className="w-px bg-zen-grey-200 self-stretch"></div>
+
+                      {/* Sección derecha - Comentarios y botones */}
+                      <div className="w-[390px] px-4 flex flex-col justify-between">
+                      <div className="flex-1">
+                        {renderServiceComments(service)}
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-2 items-end">
+                        {/* Botón Subir documentos si requiere acción del usuario */}
+                        {service.services_status?.requires_user_action &&
+                          !service.services_status?.is_final && (
                             <button
                               onClick={() =>
                                 setShowDocumentUploadModal({
@@ -721,43 +746,45 @@ export default function ConstructionView() {
                                   service: service,
                                 })
                               }
-                              className="ml-auto px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                              className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
                             >
+                              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                                <use href="/icons.svg#plus" />
+                              </svg>
                               Subir documentos
                             </button>
-                          </div>
+                          )}
+                        {service.status_id === 1 && (
+                            <button
+                              onClick={() =>
+                                navigate(`/servicios/${service.id}/documentos`)
+                              }
+                              className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
+                            >
+                              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                                <use href="/icons.svg#plus" />
+                              </svg>
+                              Subir documentos
+                            </button>
                         )}
-                      {/* Botón Subir documentos si requiere acción del usuario */}
-                      {service.status_id === 1 && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() =>
-                              navigate(`/servicios/${service.id}/documentos`)
-                            }
-                            className="ml-auto px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                          >
-                            Subir documentos
-                          </button>
-                        </div>
-                      )}
 
-                      {/* Resolve Incidence Button - Only for incidence states */}
-                      {service.services_status?.is_incidence && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() =>
-                              setShowIncidenceModal({
-                                isOpen: true,
-                                service: service,
-                              })
-                            }
-                            className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors duration-200"
-                          >
-                            <AlertCircle className="w-4 h-4 mr-2 inline" />
-                            Resolver Incidencia
-                          </button>
-                        </div>
-                      )}
+                        {/* Resolve Incidence Button - Only for incidence states */}
+                        {service.services_status?.is_incidence && (
+                            <button
+                              onClick={() =>
+                                setShowIncidenceModal({
+                                  isOpen: true,
+                                  service: service,
+                                })
+                              }
+                              className="px-4 py-2 bg-zen-error-500 text-white text-sm font-semibold rounded hover:bg-zen-error-600 transition-colors duration-200 flex items-center justify-center gap-2"
+                            >
+                              <AlertCircle className="w-4 h-4" />
+                              Resolver Incidencia
+                            </button>
+                        )}
+                      </div>
+                    </div>
                     </div>
                   </div>
                 ))}
@@ -773,7 +800,7 @@ export default function ConstructionView() {
               </div>
             )}
           </div>
-        </td>
+        </div>
       </tr>
     );
   };
@@ -812,217 +839,308 @@ export default function ConstructionView() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Cambio Sergio
+    <div className="p-6 pt-20 bg-zen-grey-0">
+      <div className="flex justify-between items-start pr-8 mb-6">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-[32px] font-semibold text-zen-grey-950 leading-[1.12]">
+            Obra de construcción
           </h2>
-          <p className="text-gray-600 mt-1">
-            Gestiona y supervisa todos los proyectos de construcción
+           <p className="text-[19px] font-normal text-zen-grey-700 leading-[1.35] w-[464.5px]">
+            Gestiona y consulta todos tus proyectos de construcción
           </p>
         </div>
         <button
           onClick={() => setShowWizard(true)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+           className="flex items-center gap-2 px-4 py-[10px] bg-zen-grey-25 text-zen-grey-950 rounded border border-zen-grey-950 hover:bg-zen-grey-100 transition-colors text-sm font-semibold leading-[1.25]"
         >
-          <Plus className="w-5 h-5 mr-2" />
-          Nueva Obra
+         <svg className="w-5 h-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <use href="/icons.svg#plus" />
+          </svg>
+          Crear Nueva Obra
         </button>
       </div>
 
       {/* Filtros y Búsqueda */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, dirección o responsable..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      <div className="flex gap-4 items-center pb-6">
+        <div className="flex flex-col gap-2 pr-6 shrink-0 w-[470px]">
+          <div className="bg-gradient-to-r from-[rgba(176,189,255,0)] from-[-5.95%] to-[#85a3ff] px-[12px] py-[8px] rounded-lg">
+            <div className="flex flex-col gap-1 w-full">
+              <div className="flex gap-2 items-center w-full">
+                <div className="flex gap-2 items-center px-4 py-3 bg-white rounded border-2 border-[#85a3ff] grow">
+                  <input
+                    type="text"
+                    placeholder="Busca por nombre de obra o ubicación"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="grow text-[16px] font-normal text-zen-grey-600 leading-[1.47] outline-none border-none"
+                  />
+                  <svg className="w-6 h-6 shrink-0 text-zen-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                    <use href="/icons.svg#search" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todos los estados</option>
-              {Array.from(
-                new Set(
-                  constructions
-                    .map((c) => c.construction_status?.name)
-                    .filter(Boolean)
-                )
-              ).map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-            <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-              <Filter className="w-4 h-4 mr-2" />
-              Más Filtros
-            </button>
+        </div>
+        <div className="flex gap-6 h-10 items-center shrink-0">
+          <div className="flex gap-6 items-center shrink-0">
+            <div className="flex items-center justify-center rounded shrink-0 relative" data-dropdown-container>
+              <div className="flex gap-2 items-center shrink-0">
+                <div className="flex flex-col font-semibold justify-center text-zen-grey-700 text-sm leading-[1.25]">
+                  <p>Estado</p>
+                </div>
+                <div
+                  className="flex gap-2 items-center justify-center p-2 bg-zen-green-100 rounded h-6 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsStatusDropdownOpen(!isStatusDropdownOpen);
+                  }}
+                >
+                  <span className="flex flex-col font-normal justify-center text-zen-green-950 text-sm leading-[1.25]">
+                    {statusFilter || 'Todos'}
+                  </span>
+                </div>
+              </div>
+              <div
+                className="flex gap-2 items-center justify-center overflow-clip px-4 py-[10px] rounded-[1000px] shrink-0 w-10 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsStatusDropdownOpen(!isStatusDropdownOpen);
+                }}
+              >
+                <svg className="w-5 h-5 shrink-0 text-zen-grey-500" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="/icons.svg#caret-down" />
+                </svg>
+              </div>
+
+              {/* Dropdown Menu */}
+              {isStatusDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 bg-white border border-zen-grey-200 rounded-lg shadow-lg z-50 min-w-[-webkit-fill-available]">
+                  <div
+                    className="px-4 py-2 text-sm text-zen-grey-950 hover:bg-zen-grey-50 cursor-pointer"
+                    onClick={() => {
+                      setStatusFilter('');
+                      setIsStatusDropdownOpen(false);
+                    }}
+                  >
+                    Todos
+                  </div>
+                  {Array.from(
+                    new Set(
+                      constructions
+                        .map((c) => c.construction_status?.name)
+                        .filter(Boolean)
+                    )
+                  ).map((status) => (
+                    <div
+                      key={status}
+                      className="px-4 py-2 text-sm text-zen-grey-950 hover:bg-zen-grey-50 cursor-pointer"
+                      onClick={() => {
+                        setStatusFilter(status);
+                        setIsStatusDropdownOpen(false);
+                      }}
+                    >
+                      {status}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Lista de Construcciones */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Proyectos ({filteredConstructions.length})
-          </h3>
-        </div>
-
+      <div className="flex flex-col gap-4">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nombre obra
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ubicación
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Responsable
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fecha finalización
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+          <div className="inline-block min-w-full">
+            <div className="flex flex-col gap-2">
+              {/* Headers */}
+              <div className="bg-zen-grey-50 flex items-center rounded py-4 w-full">
+                <div className="min-w-[32px] flex-shrink-0"></div>
+                <div className="px-2 min-w-[222px] flex-1 text-sm font-medium text-zen-grey-950">Nombre obra</div>
+                <div className="px-2 min-w-[253px] flex-1 text-sm font-medium text-zen-grey-950">Ubicación</div>
+                <div className="px-2 min-w-[193px] flex-1 text-sm font-medium text-zen-grey-950">Responsable</div>
+                <div className="px-2 min-w-[134px] flex-1 text-sm font-medium text-zen-grey-950">Viviendas</div>
+                <div className="px-2 min-w-[170px] flex-1 text-sm font-medium text-zen-grey-950">Fecha finalización</div>
+                <div className="px-2 min-w-[169px] flex-1 text-sm font-medium text-zen-grey-950">Estado</div>
+                <div className="px-2 max-w-[120px] flex-1 text-sm font-medium text-zen-grey-950">Detalle</div>
+              </div>
+
+              {/* Rows */}
+              <div className="flex flex-col gap-2">
+                <table className="w-full">
+                  <thead className="hidden">
+                    <tr>
+                      <th></th>
+                      <th>Nombre obra</th>
+                      <th>Ubicación</th>
+                      <th>Responsable</th>
+                      <th>Viviendas</th>
+                      <th>Fecha finalización</th>
+                      <th>Estado</th>
+                      <th>Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody className="flex flex-col gap-2">
               {filteredConstructions.map((construction) => (
                 <React.Fragment key={construction.id}>
-                  <tr className="hover:bg-gray-50 transition-colors duration-200">
-                    {/* Nombre obra */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <button
-                          onClick={() =>
-                            toggleConstructionExpansion(construction.id)
-                          }
-                          className="mr-2 p-1 hover:bg-gray-200 rounded transition-colors duration-200"
+                  <tr className="bg-zen-grey-50 flex items-center rounded-lg py-3 w-full">
+                    {/* Botón expandir */}
+                    <td className="min-w-[32px] flex-shrink-0 flex justify-center items-center">
+                      <button
+                        onClick={() =>
+                          toggleConstructionExpansion(construction.id)
+                        }
+                        className=""
+                      >
+                        <svg
+                          className={`w-5 h-5 text-zen-grey-700 transition-transform ${expandedConstruction === construction.id ? '' : '-rotate-90'}`}
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
                         >
-                          {expandedConstruction === construction.id ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                          )}
-                        </button>
-                        <Building2 className="w-8 h-8 text-blue-500 mr-3" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {construction.name}
-                          </div>
+                          <use href="/icons.svg#chevron-table" />
+                        </svg>
+                      </button>
+                    </td>
+
+                    {/* Nombre obra */}
+                    <td className="px-2 min-w-[222px] flex-1 flex items-center">
+                      <span className="text-base text-zen-grey-700 leading-[1.47]">
+                        {construction.name}
+                      </span>
+                    </td>
+
+                    {/* Ubicación */}
+                    <td className="px-2 min-w-[253px] flex-1 flex items-center">
+                      <span className="text-base text-zen-grey-700 leading-[1.25]">
+                        {construction.address || 'No especificada'}
+                      </span>
+                    </td>
+
+                    {/* Responsable */}
+                    <td className="px-2 min-w-[193px] flex-1 flex items-center">
+                      <span className="text-base text-zen-grey-700 leading-[1.25]">
+                        {construction.responsible || 'No asignado'}
+                      </span>
+                    </td>
+
+                    {/* Viviendas */}
+                    <td className="px-2 min-w-[134px] flex-1 flex items-center">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-6 h-6 text-zen-grey-700" viewBox="0 0 23 19" fill="currentColor">
+                          <use href="/icons.svg#buildings" />
+                        </svg>
+                        <span className="text-base text-zen-grey-700">
+                          {construction.num_viviendas || '0'}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Fecha finalización */}
+                    <td className="px-2 min-w-[170px] flex-1 flex items-center">
+                      <div className="flex gap-1 items-center relative">
+                        <div className="bg-white rounded px-2 py-2 min-w-[108px] flex items-center justify-center">
+                          <span className="text-sm text-zen-grey-700">
+                            {construction.finish_date
+                              ? new Date(construction.finish_date).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                })
+                              : 'DD/MM/AAAA'}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <button
+                            onClick={() => {
+                              const dateInput = document.getElementById(`date-${construction.id}`) as HTMLInputElement;
+                              dateInput?.showPicker?.();
+                            }}
+                            className="bg-zen-blue-50 rounded-full p-1 shrink-0 w-6 h-6 flex items-center justify-center"
+                          >
+                            <svg className="w-4 h-4 text-zen-blue-500" viewBox="0 0 16 16" fill="currentColor">
+                              <use href="/icons.svg#pencil" />
+                            </svg>
+                          </button>
+                          <input
+                            type="date"
+                            id={`date-${construction.id}`}
+                            className="absolute top-full left-0 mt-1 opacity-0 pointer-events-none"
+                            style={{ width: '1px', height: '1px' }}
+                            value={
+                              construction.finish_date
+                                ? construction.finish_date.slice(0, 10)
+                                : ''
+                            }
+                            onChange={async (e) => {
+                              const newDate = e.target.value;
+                              await supabase
+                                .from('construction')
+                                .update({ finish_date: newDate })
+                                .eq('id', construction.id);
+                              refetch();
+                            }}
+                          />
                         </div>
                       </div>
                     </td>
-                    {/* Ubicación */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {construction.address || 'No especificada'}
-                        </span>
-                      </div>
-                    </td>
-                    {/* Responsable */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {construction.responsible || 'No asignado'}
-                        </span>
-                      </div>
-                    </td>
-                    {/* Fecha finalización editable */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                        <input
-                          type="date"
-                          className="text-sm text-gray-900 border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={
-                            construction.finish_date
-                              ? construction.finish_date.slice(0, 10)
-                              : ''
-                          }
-                          onChange={async (e) => {
-                            const newDate = e.target.value;
-                            await supabase
-                              .from('construction')
-                              .update({ finish_date: newDate })
-                              .eq('id', construction.id);
-                            refetch();
-                          }}
-                        />
-                      </div>
-                    </td>
+
                     {/* Estado */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {getStatusIcon(
-                          construction.construction_status?.name || ''
-                        )}
-                        <span
-                          className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                            construction.construction_status?.name || ''
-                          )}`}
-                        >
-                          {construction.construction_status?.name ||
-                            'Sin estado'}
-                        </span>
-                      </div>
+                    <td className="px-2 min-w-[169px] flex-1 flex items-center">
+                      <span className="text-sm text-zen-grey-700">
+                        {construction.construction_status?.name || 'Sin estado'}
+                      </span>
+                    </td>
+
+                    {/* Detalle */}
+                    <td className="px-2 max-w-[120px] flex-1 flex items-center">
+                      <button
+                        onClick={() => toggleConstructionExpansion(construction.id)}
+                        className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 11 13" fill="currentColor">
+                          <use href="/icons.svg#document" />
+                        </svg>
+                        Acceder
+                      </button>
                     </td>
                   </tr>
                   {/* Fila expandida de servicios, solo si está expandida */}
                   {expandedConstruction === construction.id && (
-                    <tr>
-                      <td colSpan={5} className="p-0 align-top">
-                        <div style={{ width: '100%' }}>
-                          <ServiceRow constructionId={construction.id} />
-                        </div>
-                      </td>
-                    </tr>
+                    <ServiceRow constructionId={construction.id} construction={construction} />
                   )}
                 </React.Fragment>
               ))}
-            </tbody>
-          </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
 
         {filteredConstructions.length === 0 && (
-          <div className="text-center py-12">
-            <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No se encontraron obras
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter
-                ? 'Intenta ajustar los filtros de búsqueda'
-                : 'Comienza agregando tu primera obra de construcción'}
-            </p>
-            {!searchTerm && !statusFilter && (
-              <button
-                onClick={() => setShowWizard(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar Primera Obra
-              </button>
-            )}
-          </div>
-        )}
+            <div className="text-center py-12 bg-zen-grey-50 rounded-lg">
+              <Building2 className="w-12 h-12 text-zen-grey-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zen-grey-900 mb-2">
+                No se encontraron obras
+              </h3>
+              <p className="text-zen-grey-600 mb-4">
+                {searchTerm || statusFilter
+                  ? 'Intenta ajustar los filtros de búsqueda'
+                  : 'Comienza agregando tu primera obra de construcción'}
+              </p>
+              {!searchTerm && !statusFilter && (
+                <button
+                  onClick={() => setShowWizard(true)}
+                  className="inline-flex items-center px-4 py-2 bg-zen-blue-500 text-white rounded-lg hover:bg-zen-blue-600 transition-colors duration-200"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Primera Obra
+                </button>
+              )}
+            </div>
+          )}
       </div>
 
       {/* Wizard para agregar nueva obra */}

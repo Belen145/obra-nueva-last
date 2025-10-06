@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "mcp__figma-dev-mode-mcp-server__get_metadata",
+      "mcp__figma-dev-mode-mcp-server__get_screenshot",
+      "mcp__figma-dev-mode-mcp-server__get_code",
+      "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\buildings-icon.svg\" \"http://localhost:3845/assets/1f7d6b0ed4df5fbfb3f7c89d8eca906c13205271.svg\")",
+      "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\chevron-right-icon.svg\" \"http://localhost:3845/assets/53bfe493d125e2e68018ca971cf06a3fe0fb4f99.svg\")",
+      "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\arrow-right-icon.svg\" \"http://localhost:3845/assets/58c3554012f2f7ed1d1b6e7f19aa4b90f33560df.svg\")",
+      "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\pencil-icon.svg\" \"http://localhost:3845/assets/949767b4d9a727a43940a7295709e9cc1c407680.svg\")",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,17 +1,6 @@
 // React and dependencies
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  FileText,
-  FolderOpen,
-  Users,
-  Search,
-  Settings,
-  Upload,
-  Tag,
-  Building2,
-} from 'lucide-react';
 
 // ---------------------------------------------
 // SidebarProps: Props for Sidebar component
@@ -30,7 +19,12 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const navigate = useNavigate();
 
   // --- Menu items ---
-  const menuItems = [{ id: 'constructions', label: 'Obras', icon: Building2 }];
+  const menuItems = [{ id: 'constructions', label: 'Obras', iconId: 'obras' }];
+
+  const footerItems = [
+    { id: 'logout', label: 'Cerrar sesión', iconId: 'logout' },
+    { id: 'real-estate', label: 'Inmobiliaria', iconId: 'user' },
+  ];
 
   // --- Handlers ---
   /**
@@ -49,34 +43,87 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     }
   };
 
+  const handleFooterItemClick = (itemId: string) => {
+    // Handle footer actions
+    if (itemId === 'logout') {
+      // TODO: Implement logout
+      console.log('Logout clicked');
+    } else if (itemId === 'real-estate') {
+      // TODO: Navigate to real estate view
+      console.log('Real estate clicked');
+    }
+  };
+
   // --- Render ---
   return (
-    <div className="w-64 bg-white shadow-lg h-full border-r border-gray-200">
-      {/* Sidebar header */}
-      <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">DocManager</h1>
-        <p className="text-sm text-gray-500 mt-1">Gestión Documental</p>
+    <div className="w-[199px] bg-zen-grey-25 h-full border-r border-zen-grey-200 flex flex-col relative">
+      {/* Gradient background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute left-[-132px] top-[554px] w-[526px] h-[526px]">
+          {/* Círculo azul principal */}
+          <div className="absolute top-[185.871px] left-[61.875px] w-[148.401px] h-[148.401px] rounded-full bg-zen-blue-500 opacity-60 blur-[70px]" />
+          {/* Círculo verde */}
+          <div className="absolute top-[295.43px] left-[97.5997px] w-[148.401px] h-[148.401px] rounded-full bg-zen-green-500 opacity-60 blur-[70px]" />
+          {/* Círculo azul secundario */}
+          <div className="absolute top-[183.125px] left-[123.013px] w-[148.401px] h-[148.401px] rounded-full bg-zen-blue-500 opacity-60 blur-[70px]" />
+          {/* Círculo blanco con blur */}
+          <div className="absolute top-0 left-0 w-[526px] h-[526px] rounded-full bg-white/60 blur-[140px]" />
+        </div>
       </div>
-      {/* Menu navigation */}
-      <nav className="mt-6">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleMenuClick(item.id)}
-              className={`w-full flex items-center px-6 py-3 text-left transition-all duration-200 hover:bg-blue-50 ${
-                activeView === item.id
-                  ? 'bg-blue-50 border-r-2 border-blue-500 text-blue-600'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              <Icon className="w-5 h-5 mr-3" />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+
+      {/* Content */}
+      <div className="relative flex flex-col h-full px-3 py-6 gap-6">
+        {/* Logo */}
+        <div className="h-[39px] w-[172.638px]">
+          <svg className="h-full w-full">
+            <use href="/icons.svg#zenova-logo" />
+          </svg>
+        </div>
+
+        {/* Menu */}
+        <div className="flex flex-col justify-between flex-1">
+          {/* Main navigation */}
+          <nav className="flex flex-col gap-3">
+            {menuItems.map((item) => {
+              const isActive = activeView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleMenuClick(item.id)}
+                  className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-zen-blue-15 text-zen-blue-500'
+                      : 'text-zen-grey-950 hover:bg-zen-grey-100'
+                  }`}
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <use href={`/icons.svg#${item.iconId}`} />
+                  </svg>
+                  <span className="text-sm font-medium leading-[1.25]">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer navigation */}
+          <nav className="flex flex-col gap-3">
+            {footerItems.map((item) => {
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleFooterItemClick(item.id)}
+                  className="flex items-center gap-2 p-3 rounded-lg text-zen-grey-950 hover:bg-zen-grey-100 transition-colors"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <use href={`/icons.svg#${item.iconId}`} />
+                  </svg>
+                  <span className="text-sm font-normal leading-[1.25]">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
     </div>
   );
 }
