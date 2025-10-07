@@ -206,7 +206,7 @@ export default function ClientDocumentManagementWizard({
               <div className="flex flex-col gap-2 items-center">
                 <button
                   onClick={onClose}
-                  className="flex gap-2 items-center justify-center px-4 py-3 rounded-[1000px] hover:bg-zen-grey-100 transition-colors"
+                  className="flex gap-2 items-center justify-center px-4 py-3  transition-colors"
                   disabled={processing}
                 >
                   <span

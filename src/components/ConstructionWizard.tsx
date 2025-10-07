@@ -64,6 +64,8 @@ export default function ConstructionWizard({
   onClose,
   onSuccess,
 }: ConstructionWizardProps) {
+  // Estado para el modal de cancelación
+  const [showCancelModal, setShowCancelModal] = useState(false);
   // Estado del paso actual y carga
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
@@ -807,6 +809,138 @@ export default function ConstructionWizard({
     }
   };
 
+  // Renderiza el modal de confirmación de cancelación
+  const renderCancelModal = () => {
+    if (!showCancelModal) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="relative bg-zen-grey-25 rounded-xl w-[333px] mx-4 overflow-hidden shadow-[0px_4px_8px_-2px_rgba(16,24,40,0.1),0px_2px_4px_-2px_rgba(16,24,40,0.06)]">
+          {/* Gradient Background */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div
+              className="absolute"
+              style={{
+                width: '556.125px',
+                height: '232px',
+                left: '-133.14px',
+                top: '240px',
+              }}
+            >
+              <div
+                className="rotate-90"
+                style={{
+                  width: '232px',
+                  height: '556.138px',
+                  background:
+                    'radial-gradient(50% 50% at 50% 50%, rgba(133, 163, 255, 0.25) 0%, rgba(133, 163, 255, 0) 100%)',
+                  filter: 'blur(80px)',
+                }}
+              />
+            </div>
+            <div
+              className="absolute"
+              style={{
+                width: '808px',
+                height: '209.578px',
+                left: '243px',
+                top: '372px',
+              }}
+            >
+              <div
+                className="rotate-90"
+                style={{
+                  width: '209.6px',
+                  height: '808px',
+                  background:
+                    'radial-gradient(50% 50% at 50% 50%, rgba(133, 163, 255, 0.15) 0%, rgba(133, 163, 255, 0) 100%)',
+                  filter: 'blur(60px)',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Close button */}
+          <div className="relative flex justify-end px-4 py-[10px]">
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="flex items-center justify-center gap-2 px-4 py-[10px] rounded-lg"
+            >
+              <img src="/close-icon.svg" alt="" className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="relative px-8 pb-6">
+            <div className="flex flex-col gap-3 items-center">
+              {/* Service and info */}
+              <div className="flex flex-col gap-4 items-center p-3 rounded-xl w-full">
+                {/* Icon */}
+                <div className="flex flex-col gap-1 items-center w-full">
+                  <div className="bg-zen-warning-100 flex gap-2 items-center p-1 rounded">
+                    <div className="rounded-lg overflow-hidden w-8 h-8">
+                      <img src="/warning-figma.svg" alt="" className="w-full h-full" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* TEXT */}
+                <div className="flex flex-col gap-2 items-start w-full">
+                  {/* Title */}
+                  <div className="flex gap-1 items-center justify-center w-full">
+                    <p
+                      className="text-base font-semibold text-zen-grey-950 text-center flex-1"
+                      style={{ lineHeight: '1.47' }}
+                    >
+                      Vas a cancelar la obra
+                    </p>
+                  </div>
+                  {/* Info */}
+                  <div className="flex flex-col gap-1 items-center w-full">
+                    <p
+                      className="text-sm font-normal text-zen-grey-700 text-center w-full"
+                      style={{ lineHeight: '1.25' }}
+                    >
+                      Si cancelas la obra no te gestionaremos ninguna acometida
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col gap-3 w-full">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                 className="flex gap-2 items-center justify-center px-4 py-3 transition-colors"
+                >
+                  <span
+                    className="text-base font-semibold text-zen-blue-500 whitespace-pre"
+                    style={{ lineHeight: '1.47' }}
+                  >
+                     Continuar la creación de la obra
+                  </span>
+                 
+                </button>
+                <button
+                  onClick={onClose}
+                  className="bg-zen-blue-500 flex gap-2 items-center justify-center px-4 py-3 rounded w-full hover:bg-zen-blue-600 transition-colors"
+                >
+                  <img src="/x-white-icon.svg" alt="" className="w-4 h-4" />
+                  <span
+                    className="text-base font-semibold text-zen-grey-25 whitespace-pre"
+                    style={{ lineHeight: '1.47' }}
+                  >
+                    Cancelar obra
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-zen-grey-25 flex items-center justify-center z-50">
       <div className="bg-zen-grey-25 w-full h-full overflow-y-auto relative">
@@ -839,7 +973,7 @@ export default function ConstructionWizard({
             </div>
             <div className="flex items-center gap-8">
               <button
-                onClick={onClose}
+                onClick={() => setShowCancelModal(true)}
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-zen-grey-950 rounded hover:bg-zen-grey-100 transition-colors"
               >
                 <span className="text-base font-semibold text-zen-grey-950" style={{ lineHeight: '1.47' }}>
@@ -1059,6 +1193,7 @@ export default function ConstructionWizard({
         </div>
 
       </div>
+      {renderCancelModal()}
     </div>
   );
 }
