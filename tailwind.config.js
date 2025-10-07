@@ -104,6 +104,7 @@ export default {
         'zen-error-100': '#FCE9E9',
         'zen-error-50': '#FDF2F2',
         'zen-error-25': '#FFFBFA',
+        'zen-error-deafult': '#FEE4E2'
       },
       borderRadius: {
         lg: '8px',

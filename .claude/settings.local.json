@@ -9,7 +9,8 @@
       "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\chevron-right-icon.svg\" \"http://localhost:3845/assets/53bfe493d125e2e68018ca971cf06a3fe0fb4f99.svg\")",
       "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\arrow-right-icon.svg\" \"http://localhost:3845/assets/58c3554012f2f7ed1d1b6e7f19aa4b90f33560df.svg\")",
       "Bash(curl -o \"c:\\Users\\Sergio\\Desktop\\Qlip\\obra-nueva-LAST\\obra-nueva-last\\public\\pencil-icon.svg\" \"http://localhost:3845/assets/949767b4d9a727a43940a7295709e9cc1c407680.svg\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

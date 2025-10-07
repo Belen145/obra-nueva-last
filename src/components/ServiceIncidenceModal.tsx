@@ -310,7 +310,7 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
         {/* Content */}
         <div className="px-10 pb-8 relative z-10">
           {/* Title and Status */}
-          <div className="flex flex-col gap-5 mb-8">
+          <div className="flex flex-col mb-8">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="bg-zen-grey-50 flex items-center gap-1 px-2 py-1 rounded">
@@ -329,7 +329,7 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
             {/* Incidencia badge */}
             <div className="bg-zen-grey-100 border border-zen-grey-300 rounded px-2 py-1 flex items-center justify-center self-start">
               <span className="text-xs text-zen-grey-600 font-normal">
-                Incidencia
+                {service.services_status?.name || 'Incidencia'}
               </span>
             </div>
           </div>

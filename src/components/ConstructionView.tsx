@@ -852,10 +852,12 @@ export default function ConstructionView() {
                                   service: service,
                                 })
                               }
-                              className="px-4 py-2 bg-zen-error-500 text-white text-sm font-semibold rounded hover:bg-zen-error-600 transition-colors duration-200 flex items-center justify-center gap-2"
+                              className="w-['max-content'] px-4 py-2.5 flex items-center justify-center gap-2 bg-zen-error-deafult text-zen-error-900 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zen-error-300"
                             >
-                              <AlertCircle className="w-4 h-4" />
-                              Resolver Incidencia
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <use href="/icons.svg#wrench" />
+                              </svg>
+                              <span className="text-[14px] font-semibold">Resolver incidencia</span>
                             </button>
                         )}
                       </div>

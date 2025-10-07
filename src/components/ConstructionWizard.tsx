@@ -29,15 +29,6 @@ interface Step1Data {
 }
 
 interface Step2Data {
-  selectedServices: {
-    [key: string]: {
-      selected: boolean;
-      name: string;
-    };
-  };
-}
-
-interface Step3Data {
   society_name: string;
   society_cif: string;
   fiscal_street: string;
@@ -56,6 +47,15 @@ interface Step3Data {
   responsible_email: string;
 }
 
+interface Step3Data {
+  selectedServices: {
+    [key: string]: {
+      selected: boolean;
+      name: string;
+    };
+  };
+}
+
 /**
  * Wizard para crear una nueva obra de construcción y sus servicios asociados.
  * Incluye validaciones, pasos y manejo de estado local.
@@ -67,6 +67,7 @@ export default function ConstructionWizard({
   // Estado del paso actual y carga
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const { statuses, companies } = useConstructionData();
   const { createMultipleServices } = useServiceCreation();
 
@@ -81,13 +82,8 @@ export default function ConstructionWizard({
     postal_code: '',
   });
 
-  // Estado para datos del paso 2 (servicios)
+  // Estado para datos del paso 2 (sociedad y responsable)
   const [step2Data, setStep2Data] = useState<Step2Data>({
-    selectedServices: {},
-  });
-
-  // Estado para datos del paso 3 (sociedad y responsable)
-  const [step3Data, setStep3Data] = useState<Step3Data>({
     society_name: '',
     society_cif: '',
     fiscal_street: '',
@@ -104,6 +100,11 @@ export default function ConstructionWizard({
     responsible_dni: '',
     responsible_phone: '',
     responsible_email: '',
+  });
+
+  // Estado para datos del paso 3 (servicios)
+  const [step3Data, setStep3Data] = useState<Step3Data>({
+    selectedServices: {},
   });
 
   // Estados para los tipos de servicio
@@ -134,11 +135,11 @@ export default function ConstructionWizard({
             name: service.name
           };
           return acc;
-        }, {} as Step2Data['selectedServices']);
-        
+        }, {} as Step3Data['selectedServices']);
+
         console.log('Initial services created:', initialServices);
 
-        setStep2Data(prev => ({
+        setStep3Data(prev => ({
           ...prev,
           selectedServices: initialServices || {}
         }));
@@ -159,17 +160,36 @@ export default function ConstructionWizard({
    */
   const handleStep1Change = (field: keyof Step1Data, value: string) => {
     setStep1Data((prev: Step1Data) => ({ ...prev, [field]: value }));
+    // Si el paso 1 fue completado y ahora se modifica, invalidar pasos posteriores
+    if (completedSteps.has(1)) {
+      setCompletedSteps(new Set([1]));
+    }
   };
 
   /**
-   * Actualiza el estado de selección y tipo de servicio en el paso 2.
+   * Actualiza el estado del paso 2.
+   */
+  const handleStep2Change = (field: keyof Step2Data, value: string) => {
+    setStep2Data((prev: Step2Data) => ({ ...prev, [field]: value }));
+    // Si el paso 2 fue completado y ahora se modifica, invalidar pasos posteriores
+    if (completedSteps.has(2)) {
+      setCompletedSteps(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(3);
+        return newSet;
+      });
+    }
+  };
+
+  /**
+   * Actualiza el estado de selección y tipo de servicio en el paso 3.
    */
   const handleServiceChange = (
     serviceId: string,
     field: 'selected',
     value: boolean
   ) => {
-    setStep2Data((prev: Step2Data) => ({
+    setStep3Data((prev: Step3Data) => ({
       ...prev,
       selectedServices: {
         ...prev.selectedServices,
@@ -179,13 +199,6 @@ export default function ConstructionWizard({
         },
       },
     }));
-  };
-
-  /**
-   * Actualiza el estado del paso 3.
-   */
-  const handleStep3Change = (field: keyof Step3Data, value: string) => {
-    setStep3Data((prev: Step3Data) => ({ ...prev, [field]: value }));
   };
 
   /**
@@ -203,34 +216,35 @@ export default function ConstructionWizard({
   };
 
   /**
-   * Valida que haya al menos un servicio seleccionado y con tipo.
+   * Valida los campos obligatorios del paso 2.
    */
   const validateStep2 = (): boolean => {
-    const selectedServices = Object.entries(step2Data.selectedServices).filter(
+    return Boolean(
+      step2Data.society_name &&
+        step2Data.society_cif &&
+        step2Data.fiscal_street &&
+        step2Data.fiscal_province &&
+        step2Data.fiscal_municipality &&
+        step2Data.fiscal_postal_code &&
+        step2Data.responsible_first_name &&
+        step2Data.responsible_last_name &&
+        step2Data.responsible_dni
+    );
+  };
+
+  /**
+   * Valida que haya al menos un servicio seleccionado y con tipo.
+   */
+  const validateStep3 = (): boolean => {
+    const selectedServices = Object.entries(step3Data.selectedServices).filter(
       ([_k, service]) => service.selected
     );
     return selectedServices.length > 0;
   };
 
-  /**
-   * Valida los campos obligatorios del paso 3.
-   */
-  const validateStep3 = (): boolean => {
-    return Boolean(
-      step3Data.society_name &&
-        step3Data.society_cif &&
-        step3Data.fiscal_street &&
-        step3Data.fiscal_province &&
-        step3Data.fiscal_municipality &&
-        step3Data.fiscal_postal_code &&
-        step3Data.responsible_first_name &&
-        step3Data.responsible_last_name &&
-        step3Data.responsible_dni
-    );
-  };
-
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 3 && canProceed()) {
+      setCompletedSteps(prev => new Set(prev).add(currentStep));
       setCurrentStep(currentStep + 1);
     }
   };
@@ -238,6 +252,17 @@ export default function ConstructionWizard({
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleStepClick = (step: number) => {
+    // Solo permitir navegar a pasos anteriores o al paso actual
+    if (step <= currentStep) {
+      setCurrentStep(step);
+    }
+    // Permitir navegar a pasos futuros solo si han sido completados y el paso actual es válido
+    else if (completedSteps.has(step - 1) && canProceed()) {
+      setCurrentStep(step);
     }
   };
 
@@ -256,7 +281,7 @@ export default function ConstructionWizard({
 
       // Construir nombre completo del responsable
       const responsibleName =
-        `${step3Data.responsible_first_name} ${step3Data.responsible_last_name}`.trim();
+        `${step2Data.responsible_first_name} ${step2Data.responsible_last_name}`.trim();
 
       // 1. Crear obra
       const defaultStatus =
@@ -279,7 +304,7 @@ export default function ConstructionWizard({
       if (constructionError) throw constructionError;
 
       // 2. Crear servicios seleccionados usando el hook
-      const servicesToCreate = Object.entries(step2Data.selectedServices)
+      const servicesToCreate = Object.entries(step3Data.selectedServices)
         .filter(([_, service]) => service.selected)
         .map(([serviceId, service]) => {
           return {
@@ -309,12 +334,11 @@ export default function ConstructionWizard({
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <div className="flex items-center mb-6">
-        <MapPin className="w-6 h-6 text-blue-600 mr-3" />
+      {/* <div className="flex items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-900">
           Información de la Obra
         </h3>
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
@@ -325,7 +349,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.name}
             onChange={(e) => handleStep1Change('name', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-hidden"
             placeholder="Ej: Residencial Los Pinos"
           />
         </div>
@@ -416,61 +440,12 @@ export default function ConstructionWizard({
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <div className="flex items-center mb-6">
-        <Building className="w-6 h-6 text-blue-600 mr-3" />
-        <h3 className="text-lg font-semibold text-gray-900">
-          Servicios de la Obra
-        </h3>
-      </div>
-
-      <div className="space-y-4">
-        {loadingServiceTypes ? (
-          <div className="text-center py-4">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-2 text-gray-600">Cargando servicios disponibles...</p>
-          </div>
-        ) : Object.keys(step2Data.selectedServices).length === 0 ? (
-          <div className="text-center py-4">
-            <p className="text-gray-600">No hay servicios disponibles</p>
-          </div>
-        ) : (
-          Object.entries(step2Data.selectedServices).map(([serviceId, service]) => (
-            <div key={serviceId} className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={service.selected}
-                    onChange={(e) =>
-                      handleServiceChange(
-                        serviceId,
-                        'selected',
-                        e.target.checked
-                      )
-                    }
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
-                  />
-                  <span className="text-lg font-medium text-gray-900">
-                    {service.name}
-                  </span>
-                </label>
-              </div>
-
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      <div className="flex items-center mb-6">
+      {/* <div className="flex items-center mb-6">
         <Users className="w-6 h-6 text-blue-600 mr-3" />
         <h3 className="text-lg font-semibold text-gray-900">
           Información de la Sociedad y Responsable
         </h3>
-      </div>
+      </div> */}
 
       {/* Información de la Sociedad */}
       <div className="bg-gray-50 rounded-lg p-4">
@@ -482,9 +457,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.society_name}
+              value={step2Data.society_name}
               onChange={(e) =>
-                handleStep3Change('society_name', e.target.value)
+                handleStep2Change('society_name', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Ej: Constructora ABC S.L."
@@ -497,8 +472,8 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.society_cif}
-              onChange={(e) => handleStep3Change('society_cif', e.target.value)}
+              value={step2Data.society_cif}
+              onChange={(e) => handleStep2Change('society_cif', e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Ej: B12345678"
             />
@@ -515,9 +490,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_street}
+              value={step2Data.fiscal_street}
               onChange={(e) =>
-                handleStep3Change('fiscal_street', e.target.value)
+                handleStep2Change('fiscal_street', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -529,9 +504,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_number}
+              value={step2Data.fiscal_number}
               onChange={(e) =>
-                handleStep3Change('fiscal_number', e.target.value)
+                handleStep2Change('fiscal_number', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -543,9 +518,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_block}
+              value={step2Data.fiscal_block}
               onChange={(e) =>
-                handleStep3Change('fiscal_block', e.target.value)
+                handleStep2Change('fiscal_block', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -557,9 +532,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_staircase}
+              value={step2Data.fiscal_staircase}
               onChange={(e) =>
-                handleStep3Change('fiscal_staircase', e.target.value)
+                handleStep2Change('fiscal_staircase', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -571,9 +546,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_floor}
+              value={step2Data.fiscal_floor}
               onChange={(e) =>
-                handleStep3Change('fiscal_floor', e.target.value)
+                handleStep2Change('fiscal_floor', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -585,9 +560,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_letter}
+              value={step2Data.fiscal_letter}
               onChange={(e) =>
-                handleStep3Change('fiscal_letter', e.target.value)
+                handleStep2Change('fiscal_letter', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -599,9 +574,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_province}
+              value={step2Data.fiscal_province}
               onChange={(e) =>
-                handleStep3Change('fiscal_province', e.target.value)
+                handleStep2Change('fiscal_province', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -613,9 +588,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_municipality}
+              value={step2Data.fiscal_municipality}
               onChange={(e) =>
-                handleStep3Change('fiscal_municipality', e.target.value)
+                handleStep2Change('fiscal_municipality', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -627,9 +602,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.fiscal_postal_code}
+              value={step2Data.fiscal_postal_code}
               onChange={(e) =>
-                handleStep3Change('fiscal_postal_code', e.target.value)
+                handleStep2Change('fiscal_postal_code', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -649,9 +624,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.responsible_first_name}
+              value={step2Data.responsible_first_name}
               onChange={(e) =>
-                handleStep3Change('responsible_first_name', e.target.value)
+                handleStep2Change('responsible_first_name', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -663,9 +638,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.responsible_last_name}
+              value={step2Data.responsible_last_name}
               onChange={(e) =>
-                handleStep3Change('responsible_last_name', e.target.value)
+                handleStep2Change('responsible_last_name', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -677,9 +652,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="text"
-              value={step3Data.responsible_dni}
+              value={step2Data.responsible_dni}
               onChange={(e) =>
-                handleStep3Change('responsible_dni', e.target.value)
+                handleStep2Change('responsible_dni', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Ej: 12345678A"
@@ -692,9 +667,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="tel"
-              value={step3Data.responsible_phone}
+              value={step2Data.responsible_phone}
               onChange={(e) =>
-                handleStep3Change('responsible_phone', e.target.value)
+                handleStep2Change('responsible_phone', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Ej: 600123456"
@@ -707,9 +682,9 @@ export default function ConstructionWizard({
             </label>
             <input
               type="email"
-              value={step3Data.responsible_email}
+              value={step2Data.responsible_email}
               onChange={(e) =>
-                handleStep3Change('responsible_email', e.target.value)
+                handleStep2Change('responsible_email', e.target.value)
               }
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Ej: responsable@empresa.com"
@@ -719,6 +694,73 @@ export default function ConstructionWizard({
       </div>
     </div>
   );
+
+  const renderStep3 = () => (
+    <div className="flex flex-col gap-4 w-full">
+      {/* Label */}
+      <div className="font-['Figtree',sans-serif] font-semibold text-[16px] leading-[1.47] text-zen-grey-950">
+        Escoge los suministros<span className="text-zen-blue-500">*</span>
+      </div>
+
+      {loadingServiceTypes ? (
+        <div className="text-center py-4">
+          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-2 text-gray-600">Cargando servicios disponibles...</p>
+        </div>
+      ) : Object.keys(step3Data.selectedServices).length === 0 ? (
+        <div className="text-center py-4">
+          <p className="text-gray-600">No hay servicios disponibles</p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-4 w-full">
+          {Object.entries(step3Data.selectedServices).map(([serviceId, service]) => (
+            <button
+              key={serviceId}
+              onClick={() => handleServiceChange(serviceId, 'selected', !service.selected)}
+              className={`w-[218.5px] h-[164px] flex flex-col gap-3 p-6 rounded-lg border transition-all ${
+                service.selected
+                  ? 'bg-zen-blue-15 border-2 border-zen-blue-500'
+                  : 'bg-white border border-zen-grey-400 hover:border-zen-blue-300'
+              }`}
+            >
+              {/* Icon */}
+              <div className={`w-fit p-2 rounded ${
+                service.selected ? 'bg-zen-blue-500' : 'bg-zen-grey-200'
+              }`}>
+                <Building className={`w-4 h-4 ${
+                  service.selected ? 'text-white' : 'text-zen-grey-600'
+                }`} />
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col gap-1 items-start text-left">
+                <p className={`font-['Figtree',sans-serif] text-[16px] leading-[1.47] ${
+                  service.selected ? 'font-semibold text-zen-grey-950' : 'font-medium text-zen-grey-700'
+                }`}>
+                  {service.name}
+                </p>
+                <p className="font-['Figtree',sans-serif] font-normal text-[14px] leading-[1.25] text-zen-grey-700">
+                  {getServiceDescription(service.name)}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Helper function para obtener descripciones de servicios
+  const getServiceDescription = (serviceName: string): string => {
+    const descriptions: Record<string, string> = {
+      'Luz obra': 'Suministro temporal de electricidad para los trabajos de construcción.',
+      'Luz definitiva': 'Conexión eléctrica final para el uso normal del inmueble.',
+      'Agua obra': 'Suministro provisional de agua para la fase de construcción.',
+      'Agua definitiva (AFS)': 'Conexión permanente de agua lista para el uso habitual de la edificación.',
+      'Telecomunicaciones': 'Servicio de telecomunicaciones (fibra, internet, telefonía)'
+    };
+    return descriptions[serviceName] || 'Servicio disponible para tu obra.';
+  };
 
   const canProceed = () => {
     switch (currentStep) {
@@ -734,104 +776,235 @@ export default function ConstructionWizard({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-zen-grey-25 flex items-center justify-center z-50">
+      <div className="bg-zen-grey-25 w-full h-full overflow-y-auto relative">
+        {/* Gradient Background */}
+        {/* <div className="absolute inset-0 pointer-events-none" style={{ overflow: 'hidden' }}>
+          <div
+            className="absolute"
+            style={{
+              width: '1338px',
+              height: '462px',
+              left: '240px',
+              top: '-378px',
+              transform: 'rotate(90deg)',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(133, 163, 255, 0.25) 0%, rgba(133, 163, 255, 0) 100%)',
+              filter: 'blur(80px)',
+            }}
+          />
+        </div> */}
+
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <Building2 className="w-6 h-6 text-blue-600 mr-3" />
-            <h2 className="text-xl font-bold text-gray-900">
-              Nueva Obra de Construcción
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Progress Steps */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step === currentStep
-                      ? 'bg-blue-600 text-white'
-                      : step < currentStep
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {step}
-                </div>
-                <div className="ml-2 text-sm font-medium text-gray-900">
-                  {step === 1 && 'Información Básica'}
-                  {step === 2 && 'Servicios'}
-                  {step === 3 && 'Sociedad y Responsable'}
-                </div>
-                {step < 3 && (
-                  <ChevronRight className="w-4 h-4 text-gray-400 mx-4" />
-                )}
+        <div className="relative z-10 flex flex-col gap-6 px-0 py-4 border-b border-zen-grey-300">
+          <div className="flex items-center justify-between w-[924px] mx-auto">
+            <div className="flex items-center gap-4">
+              <div className="bg-zen-grey-200 flex items-center p-2 rounded">
+                <img src="/construction-icon.svg" alt="" className="w-5 h-5" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-between items-center p-6 border-t border-gray-200">
-          <button
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            className="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Anterior
-          </button>
-
-          <div className="flex space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-            >
-              Cancelar
-            </button>
-
-            {currentStep < 3 ? (
+              <h2 className="text-[26px] font-semibold text-zen-grey-950" style={{ lineHeight: '1.24' }}>
+                Nueva obra
+              </h2>
+            </div>
+            <div className="flex items-center gap-8">
               <button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-zen-grey-950 rounded hover:bg-zen-grey-100 transition-colors"
               >
-                Siguiente
-                <ChevronRight className="w-4 h-4 ml-2" />
+                <span className="text-base font-semibold text-zen-grey-950" style={{ lineHeight: '1.47' }}>
+                  Cancelar
+                </span>
               </button>
-            ) : (
               <button
                 onClick={handleSubmit}
                 disabled={!canProceed() || loading}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-zen-blue-500 text-zen-grey-25 rounded hover:bg-zen-blue-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {loading ? 'Creando...' : 'Crear Obra'}
+                <span className="text-base font-semibold" style={{ lineHeight: '1.47' }}>
+                  {loading ? 'Creando...' : 'Crear obra'}
+                </span>
               </button>
-            )}
+            </div>
           </div>
         </div>
+
+        {/* Content Container */}
+        <div className="relative z-10 w-[924px] mx-auto pt-10">
+          {/* Stepper */}
+          <div className="flex flex-col gap-6 mb-10">
+            <div className="flex items-center gap-0">
+              {/* Step 1 */}
+              <button
+                onClick={() => handleStepClick(1)}
+                className={`flex items-center justify-center gap-1 px-3 py-2 rounded h-8 transition-all ${
+                  currentStep === 1
+                    ? 'bg-zen-blue-300'
+                    : completedSteps.has(1)
+                    ? 'bg-[#acfcbf] border border-[#56c472] hover:bg-[#9ef0b0]'
+                    : 'bg-zen-blue-15 hover:bg-zen-blue-50 cursor-pointer'
+                }`}
+              >
+                {completedSteps.has(1) && currentStep !== 1 ? (
+                  <>
+                    <svg className="w-4 h-4 text-zen-green-900" viewBox="0 0 16 16" fill="currrentColor">
+                      <use href="/icons.svg#check-circle" />
+                    </svg>
+                    <span className="text-sm font-semibold text-[#245231]" style={{ lineHeight: '1.25' }}>
+                      1
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <img
+                      src="/construction-white-icon.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
+                    <span
+                      className={`text-sm font-semibold ${
+                        currentStep === 1 ? 'text-zen-grey-25' : 'text-zen-blue-500'
+                      }`}
+                      style={{ lineHeight: '1.25' }}
+                    >
+                      {currentStep === 1 ? '1. Datos de la obra' : '1'}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              <ChevronRight className="w-4 h-4 text-zen-grey-400" />
+
+              {/* Step 2 */}
+              <button
+                onClick={() => handleStepClick(2)}
+                disabled={!completedSteps.has(1) && currentStep < 2}
+                className={`flex items-center justify-center gap-1 px-3 py-2 rounded h-8 transition-all ${
+                  currentStep === 2
+                    ? 'bg-zen-blue-300'
+                    : completedSteps.has(2)
+                    ? 'bg-[#acfcbf] border border-[#56c472] hover:bg-[#9ef0b0]'
+                    : completedSteps.has(1) || currentStep >= 2
+                    ? 'bg-zen-blue-15 hover:bg-zen-blue-50 cursor-pointer'
+                    : 'bg-zen-blue-15 cursor-not-allowed'
+                }`}
+              >
+                {completedSteps.has(2) && currentStep !== 2 ? (
+                  <>
+                    <svg className="w-4 h-4 text-zen-green-900" viewBox="0 0 16 16" fill="currrentColor">
+                      <use href="/icons.svg#check-circle" />
+                    </svg>
+                    <span className="text-sm font-semibold text-[#245231]" style={{ lineHeight: '1.25' }}>
+                      2
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className={`w-4 h-4 ${
+                        currentStep === 2 ? 'text-zen-grey-25' : 'text-zen-blue-500'
+                      }`}  viewBox="0 0 16 16" fill="currentColor">
+                      <use href="/icons.svg#briefcase" />
+                    </svg>
+                    <span
+                      className={`text-sm font-semibold ${
+                        currentStep === 2 ? 'text-zen-grey-25' : 'text-zen-blue-500'
+                      }`}
+                      style={{ lineHeight: '1.25' }}
+                    >
+                      {currentStep === 2 ? '2. Datos de la sociedad y responsable' : '2'}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              <ChevronRight className="w-4 h-4 text-zen-grey-400" />
+
+              {/* Step 3 */}
+              <button
+                onClick={() => handleStepClick(3)}
+                disabled={!completedSteps.has(2) && currentStep < 3}
+                className={`flex items-center justify-center gap-1 px-3 py-2 rounded h-8 transition-all ${
+                  currentStep === 3
+                    ? 'bg-zen-blue-300'
+                    : completedSteps.has(3)
+                    ? 'bg-[#acfcbf] border border-[#56c472] hover:bg-[#9ef0b0]'
+                    : completedSteps.has(2) || currentStep >= 3
+                    ? 'bg-zen-blue-15 hover:bg-zen-blue-50 cursor-pointer'
+                    : 'bg-zen-blue-15 cursor-not-allowed'
+                }`}
+              >
+                {completedSteps.has(3) && currentStep !== 3 ? (
+                  <>
+                    <svg className="w-4 h-4 text-zen-green-900" viewBox="0 0 16 16" fill="currrentColor">
+                      <use href="/icons.svg#check-circle" />
+                    </svg>
+                    <span className="text-sm font-semibold text-[#245231]" style={{ lineHeight: '1.25' }}>
+                      3
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className={`w-4 h-4 ${
+                        currentStep === 3 ? 'text-zen-grey-25' : 'text-zen-blue-500'
+                      }`}  viewBox="0 0 16 16" fill="currentColor">
+                      <use href="/icons.svg#lightning" />
+                    </svg>
+                    <span
+                      className={`text-sm font-semibold ${
+                        currentStep === 3 ? 'text-zen-grey-25' : 'text-zen-blue-500'
+                      }`}
+                      style={{ lineHeight: '1.25' }}
+                    >
+                      {currentStep === 3 ? '3. Suministros' : '3'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Title and Description */}
+            <div className="flex flex-col gap-2 text-zen-grey-950">
+              <h3 className="text-[21px] font-semibold" style={{ lineHeight: '1.5' }}>
+                {currentStep === 1 && 'Información de la obra'}
+                {currentStep === 2 && 'Información de la sociedad y responsable'}
+                {currentStep === 3 && 'Selecciona los suministros para tu obra'}
+              </h3>
+              <p className="text-base font-normal" style={{ lineHeight: '1.47' }}>
+                {currentStep === 1 && 'Datos de la obra'}
+                {currentStep === 2 && 'Datos de la sociedad y responsable'}
+                {currentStep === 3 && 'Selecciona los servicios de obra y definitivos que necesites en tu proyecto.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="mb-10">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+          </div>
+
+          {/* Footer with Next Button */}
+          <div className="flex items-center justify-end gap-6 bg-zen-grey-25 py-10 px-4">
+            <p
+              className="text-xs font-normal text-zen-grey-500 text-right w-60"
+              style={{ lineHeight: 'normal', letterSpacing: '0.048px' }}
+            >
+              Para poder seguir adelante tienes que rellenar todos los datos obligatorios
+            </p>
+            <button
+              onClick={currentStep < 3 ? handleNext : handleSubmit}
+              disabled={!canProceed() || (currentStep === 3 && loading)}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-zen-blue-500 text-zen-grey-25 rounded hover:bg-zen-blue-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            >
+              <span className="text-base font-semibold" style={{ lineHeight: '1.47' }}>
+                {currentStep < 3 ? 'Siguiente' : loading ? 'Creando...' : 'Crear obra'}
+              </span>
+              {currentStep < 3 && (
+                <img src="/arrow-right-blue.svg" alt="" className="w-6 h-6 brightness-0 invert" />
+              )}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );

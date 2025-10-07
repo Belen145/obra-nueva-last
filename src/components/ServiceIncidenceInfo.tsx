@@ -33,7 +33,7 @@ export function ServiceIncidenceInfo({ service }: { service: any }) {
   if (loading || !serviceTypeStatuses.length) return null;
 
   return (
-    <div className="mb-4">
+    <div>
       <ServiceProgressTracker
         service={service}
         serviceTypeStatuses={serviceTypeStatuses}

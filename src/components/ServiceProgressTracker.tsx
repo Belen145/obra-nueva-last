@@ -146,29 +146,23 @@ export function ServiceProgressTracker({
             return (
               <div
                 key={status.id}
-                className="flex flex-col items-start"
+                className="flex items-start"
                 style={{
-                  justifyContent: isFirst
-                    ? 'flex-start'
-                    : isLast
-                    ? 'flex-end'
-                    : 'center',
-                  textAlign: isFirst
-                    ? 'left'
-                    : isLast
-                    ? 'right'
-                    : 'center',
-                  flex: isFirst || isLast ? '0 0 auto' : '1',
-                  maxWidth: isFirst || isLast ? 'none' : '100px',
+                  width: '16px',
+                  flexShrink: 0,
+                  justifyContent: isFirst ? 'flex-start' : isLast ? 'flex-end' : 'center',
                 }}
               >
                 <p
-                  className={`text-xs ${
-                    isActive ? 'font-semibold text-zen-grey-950' : 'font-normal text-zen-grey-600'
+                  className={`text-xs leading-[1.35] whitespace-pre-line ${
+                    isActive
+                      ? 'font-semibold text-zen-grey-950'
+                      : 'font-normal text-zen-grey-600'
                   }`}
                   style={{
-                    lineHeight: '1.35',
-                    whiteSpace: isFirst || isLast ? 'normal' : 'normal',
+                    textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
+                    minWidth: '105px',
+          
                   }}
                 >
                   {status.name}
