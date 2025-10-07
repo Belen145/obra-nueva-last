@@ -228,7 +228,7 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-      <div className="bg-white rounded-xl w-full max-w-[796px] max-h-[90vh] overflow-y-auto relative">
+      <div className="bg-white rounded-xl w-full max-w-[1200px] max-h-[90vh] overflow-y-auto relative">
         {/* Gradient Background */}
         <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ overflow: 'hidden' }}>
           {/* Main large ellipse - rotated 90 degrees */}

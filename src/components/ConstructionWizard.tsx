@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Building2,
@@ -29,11 +29,11 @@ interface Step1Data {
 }
 
 interface Step2Data {
-  services: {
-    luz: { selected: boolean; service_type: string };
-    gas: { selected: boolean; service_type: string };
-    agua: { selected: boolean; service_type: string };
-    telefonia: { selected: boolean; service_type: string };
+  selectedServices: {
+    [key: string]: {
+      selected: boolean;
+      name: string;
+    };
   };
 }
 
@@ -83,12 +83,7 @@ export default function ConstructionWizard({
 
   // Estado para datos del paso 2 (servicios)
   const [step2Data, setStep2Data] = useState<Step2Data>({
-    services: {
-      luz: { selected: true, service_type: '' },
-      gas: { selected: false, service_type: '' },
-      agua: { selected: true, service_type: '' },
-      telefonia: { selected: false, service_type: '' },
-    },
+    selectedServices: {},
   });
 
   // Estado para datos del paso 3 (sociedad y responsable)
@@ -111,18 +106,53 @@ export default function ConstructionWizard({
     responsible_email: '',
   });
 
-  const serviceTypes = [
-    { value: 'obra', label: 'Obra' },
-    { value: 'definitiva', label: 'Definitiva' },
-    { value: 'ambos', label: 'Ambos' },
-  ];
+  // Estados para los tipos de servicio
+  const [serviceTypes, setServiceTypes] = useState<Array<{id: number, name: string}>>([]);
+  const [loadingServiceTypes, setLoadingServiceTypes] = useState(true);
 
-  const serviceLabels = {
-    luz: 'Luz',
-    gas: 'Gas',
-    agua: 'Agua',
-    telefonia: 'Telefonía',
-  };
+  // Cargar tipos de servicio al montar el componente
+  useEffect(() => {
+    const fetchServiceTypes = async () => {
+      console.log('Fetching service types...');
+      try {
+        const { data, error } = await supabase
+          .from('service_type')
+          .select('id, name')
+          .order('name');
+
+        console.log('Service types response:', { data, error });
+
+        if (error) throw error;
+        setServiceTypes(data || []);
+
+        // Initialize selectedServices state with the fetched services
+        console.log('Setting up initial services...');
+        const initialServices = data?.reduce((acc, service) => {
+          console.log('Processing service:', service);
+          acc[service.id] = {
+            selected: false,
+            name: service.name
+          };
+          return acc;
+        }, {} as Step2Data['selectedServices']);
+        
+        console.log('Initial services created:', initialServices);
+
+        setStep2Data(prev => ({
+          ...prev,
+          selectedServices: initialServices || {}
+        }));
+      } catch (err) {
+        console.error('Error al cargar tipos de servicio:', err);
+      } finally {
+        setLoadingServiceTypes(false);
+      }
+    };
+
+    fetchServiceTypes();
+  }, []);
+
+  // Service labels are now dynamic from the database
 
   /**
    * Actualiza el estado del paso 1.
@@ -135,16 +165,16 @@ export default function ConstructionWizard({
    * Actualiza el estado de selección y tipo de servicio en el paso 2.
    */
   const handleServiceChange = (
-    service: keyof Step2Data['services'],
-    field: 'selected' | 'service_type',
-    value: boolean | string
+    serviceId: string,
+    field: 'selected',
+    value: boolean
   ) => {
     setStep2Data((prev: Step2Data) => ({
       ...prev,
-      services: {
-        ...prev.services,
-        [service]: {
-          ...prev.services[service],
+      selectedServices: {
+        ...prev.selectedServices,
+        [serviceId]: {
+          ...prev.selectedServices[serviceId],
           [field]: value,
         },
       },
@@ -176,13 +206,10 @@ export default function ConstructionWizard({
    * Valida que haya al menos un servicio seleccionado y con tipo.
    */
   const validateStep2 = (): boolean => {
-    const selectedServices = Object.entries(step2Data.services).filter(
+    const selectedServices = Object.entries(step2Data.selectedServices).filter(
       ([_k, service]) => service.selected
     );
-    return (
-      selectedServices.length > 0 &&
-      selectedServices.every(([_k, service]) => !!service.service_type)
-    );
+    return selectedServices.length > 0;
   };
 
   /**
@@ -252,26 +279,23 @@ export default function ConstructionWizard({
       if (constructionError) throw constructionError;
 
       // 2. Crear servicios seleccionados usando el hook
-      const servicesToCreate = Object.entries(step2Data.services)
+      const servicesToCreate = Object.entries(step2Data.selectedServices)
         .filter(([_, service]) => service.selected)
-        .map(([serviceName, service]) => ({
-          serviceType: service.service_type, // 'obra', 'definitiva', 'ambos'
-          serviceName: serviceName, // 'luz', 'gas', 'agua', 'telefonia'
-        }));
+        .map(([serviceId, service]) => {
+          return {
+            typeIds: [Number(serviceId)],
+            comment: `Servicio de ${service.name} para ${step1Data.name}`
+          };
+        })
+        .filter(service => service.typeIds.length > 0);
 
       if (servicesToCreate.length > 0) {
         console.log('🔄 Creando servicios para la obra:', servicesToCreate);
-
-        const result = await createMultipleServices(
+        const services = await createMultipleServices(
           construction.id,
           servicesToCreate
         );
-
-        if (!result.success) {
-          throw new Error(result.error || 'Error creando servicios');
-        }
-
-        console.log('✅ Servicios creados exitosamente:', result.services);
+        console.log('✅ Servicios creados exitosamente:', services);
       }
 
       onSuccess(construction.id);
@@ -400,55 +424,41 @@ export default function ConstructionWizard({
       </div>
 
       <div className="space-y-4">
-        {Object.entries(step2Data.services).map(([serviceKey, service]) => (
-          <div key={serviceKey} className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={service.selected}
-                  onChange={(e) =>
-                    handleServiceChange(
-                      serviceKey as keyof Step2Data['services'],
-                      'selected',
-                      e.target.checked
-                    )
-                  }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
-                />
-                <span className="text-lg font-medium text-gray-900">
-                  {serviceLabels[serviceKey as keyof typeof serviceLabels]}
-                </span>
-              </label>
-            </div>
-
-            {service.selected && (
-              <div className="ml-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Servicio *
-                </label>
-                <select
-                  value={service.service_type}
-                  onChange={(e) =>
-                    handleServiceChange(
-                      serviceKey as keyof Step2Data['services'],
-                      'service_type',
-                      e.target.value
-                    )
-                  }
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Seleccionar tipo</option>
-                  {serviceTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+        {loadingServiceTypes ? (
+          <div className="text-center py-4">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-2 text-gray-600">Cargando servicios disponibles...</p>
           </div>
-        ))}
+        ) : Object.keys(step2Data.selectedServices).length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-gray-600">No hay servicios disponibles</p>
+          </div>
+        ) : (
+          Object.entries(step2Data.selectedServices).map(([serviceId, service]) => (
+            <div key={serviceId} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={service.selected}
+                    onChange={(e) =>
+                      handleServiceChange(
+                        serviceId,
+                        'selected',
+                        e.target.checked
+                      )
+                    }
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                  />
+                  <span className="text-lg font-medium text-gray-900">
+                    {service.name}
+                  </span>
+                </label>
+              </div>
+
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

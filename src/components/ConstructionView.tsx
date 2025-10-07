@@ -759,7 +759,7 @@ export default function ConstructionView() {
                                           return (
                                             <div
                                               key={status.id}
-                                              className="flex items-center"
+                                              className="flex items-start"
                                               style={{
                                                 width: '16px',
                                                 flexShrink: 0,
@@ -774,7 +774,7 @@ export default function ConstructionView() {
                                                 }`}
                                                 style={{
                                                   textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
-                                                  minWidth: 'max-content',
+                                                  minWidth: '105px',
                                         
                                                 }}
                                               >
