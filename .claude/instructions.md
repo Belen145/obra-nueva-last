@@ -19,7 +19,19 @@ El objetivo del presente proyecto es actualizar los estilos a los que se usan en
 
 - **Color de tipografía**: para interpretar fielmente el color de la tipografía de los textos que aparece en Figma, deberás fijarte en en apartado Colors, sección Text colors y ahí aparecerá la variable con el color en cuestión, que deberás matchear con los colores de Zenova definidos en `tailwind.config.js`. Recuerda que todos los estilos deben ser introducidos a través de la semántica de Tailwind CSS
 
-- **Dimensiones y espaciados**: SIEMPRE debes obtener la metadata del diseño y sus elementos usando `get_metadata` para verificar las medidas exactas (width, height, padding, gap, etc.). Usarás estas medidas como referencia para aplicar el diseño a código.
+- **Dimensiones y espaciados**: **CRÍTICO** - SIEMPRE debes obtener la metadata del diseño usando `get_metadata` ANTES de implementar cualquier componente. Este paso es OBLIGATORIO y NO OPCIONAL. Debes:
+  1. Llamar a `get_metadata` para el nodo de Figma
+  2. Extraer el `width` y `height` exactos del nodo
+  3. Aplicar esas dimensiones exactas usando clases de Tailwind con valores específicos (ej: `w-[333px]`, `h-[352px]`)
+  4. NO usar valores aproximados o genéricos como `max-w-md`, `max-w-lg`, etc.
+  5. Verificar también padding, gap, border-radius en el código generado por `get_code`
+
+  **Ejemplo correcto**:
+  - Metadata muestra `width="333"` → Usar `w-[333px]`
+  - Metadata muestra `height="352"` → Usar `h-[352px]`
+
+  **Ejemplo INCORRECTO**:
+  - Metadata muestra `width="333"` → NO usar `max-w-sm` o `w-96`
 
 ## Paleta de Colores
 

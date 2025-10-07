@@ -1,0 +1,1 @@
+- 'c:/Users/Sergio/Desktop/Qlip/obra-nueva-LAST/obra-nueva-last/.claude/instructions.md'

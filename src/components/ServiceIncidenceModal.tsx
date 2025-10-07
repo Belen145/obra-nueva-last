@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  X,
-  Upload,
   FileText,
-  AlertTriangle,
   Check,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { ServiceIncidenceInfo } from './ServiceIncidenceInfo';
 import { supabase } from '../lib/supabase';
@@ -35,12 +33,25 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textContent, setTextContent] = useState('');
-  const [dragOver, setDragOver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isObservacionesExpanded, setIsObservacionesExpanded] = useState(false);
+  const [showLeerMas, setShowLeerMas] = useState(false);
+
+  const observacionesRef = useRef<HTMLDivElement>(null);
 
   // El objeto service ya viene completo desde ConstructionView
+
+  // Check if observaciones text needs "Leer más" button
+  useEffect(() => {
+    if (observacionesRef.current && service.comment) {
+      const lineHeight = 24; // Approximate line height in pixels (16px * 1.47)
+      const maxHeight = lineHeight * 2; // 2 lines
+      const actualHeight = observacionesRef.current.scrollHeight;
+      setShowLeerMas(actualHeight > maxHeight);
+    }
+  }, [service.comment]);
 
   // --------------------
   // File and Text Handlers
@@ -48,27 +59,6 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setError(null);
-    }
-  };
-
-  // Drag and drop handlers
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = () => {
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
     if (file) {
       setSelectedFile(file);
       setError(null);
@@ -237,59 +227,159 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
   // --------------------
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                Resolver Incidencia
-              </h2>
-              <p className="text-sm text-gray-600">
-                {service.service_type?.name || `Servicio ${service.id}`}
-              </p>
-            </div>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-xl w-full max-w-[796px] max-h-[90vh] overflow-y-auto relative">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ overflow: 'hidden' }}>
+          {/* Main large ellipse - rotated 90 degrees */}
+          <div
+            className="absolute"
+            style={{
+              width: '769px',
+              height: '321px',
+              left: '513px',
+              top: '218px',
+              transform: 'rotate(90deg)',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(133, 163, 255, 0.25) 0%, rgba(133, 163, 255, 0) 100%)',
+              filter: 'blur(80px)',
+            }}
+          />
+          {/* Smaller ellipse 1 */}
+          <div
+            className="absolute"
+            style={{
+              width: '255px',
+              height: '87px',
+              left: '595px',
+              top: '321px',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(10, 71, 255, 0.2) 0%, rgba(10, 71, 255, 0) 100%)',
+              filter: 'blur(50px)',
+            }}
+          />
+          {/* Smaller ellipse 2 */}
+          <div
+            className="absolute"
+            style={{
+              width: '213px',
+              height: '108px',
+              left: '333px',
+              top: '323px',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(0, 51, 204, 0.15) 0%, rgba(0, 51, 204, 0) 100%)',
+              filter: 'blur(60px)',
+            }}
+          />
+          {/* Smaller ellipse 3 */}
+          <div
+            className="absolute"
+            style={{
+              width: '213px',
+              height: '108px',
+              left: '280px',
+              top: '350px',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(71, 117, 255, 0.18) 0%, rgba(71, 117, 255, 0) 100%)',
+              filter: 'blur(55px)',
+            }}
+          />
+          {/* Smaller ellipse 4 */}
+          <div
+            className="absolute"
+            style={{
+              width: '171px',
+              height: '87px',
+              left: '514px',
+              top: '360px',
+              background: 'radial-gradient(50% 50% at 50% 50%, rgba(133, 163, 255, 0.22) 0%, rgba(133, 163, 255, 0) 100%)',
+              filter: 'blur(45px)',
+            }}
+          />
+        </div>
+
+        {/* Header with close button */}
+        <div className="flex justify-end p-2 relative z-10">
           <button
             onClick={handleClose}
             disabled={submitting}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 disabled:opacity-50"
+            className="p-4 rounded-full disabled:opacity-50"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <svg className="w-6 h-7 text-zen-grey-950" viewBox="0 0 16 16" fill="none">
+              <use href="/icons.svg#x-close" />
+            </svg>
           </button>
         </div>
 
-        {/* Tracker y Observaciones */}
-        <div className="px-6 pt-4">
-          <ServiceIncidenceInfo service={service} />
-        </div>
-
         {/* Content */}
-        <div className="p-6">
-          {/* Service Info */}
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
-              <div>
-                <h3 className="text-sm font-medium text-red-900">
-                  Estado de Incidencia Detectado
-                </h3>
-                <p className="text-sm text-red-700 mt-1">
-                  <strong>Estado actual:</strong>{' '}
-                  {service.services_status?.name || 'Sin estado'}
-                </p>
-                <p className="text-sm text-red-600 mt-1">
-                  Service ID: {service.id} • Status ID: {service.status_id}
-                </p>
+        <div className="px-10 pb-8 relative z-10">
+          {/* Title and Status */}
+          <div className="flex flex-col gap-5 mb-8">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="bg-zen-grey-50 flex items-center gap-1 px-2 py-1 rounded">
+                  <span className="text-base font-semibold text-zen-grey-950">
+                    {service.service_type?.name || `Servicio ${service.id}`}
+                  </span>
+                </div>
               </div>
+
+              {/* Progress tracker */}
+              <div className="py-2">
+                <ServiceIncidenceInfo service={service} />
+              </div>
+            </div>
+
+            {/* Incidencia badge */}
+            <div className="bg-zen-grey-100 border border-zen-grey-300 rounded px-2 py-1 flex items-center justify-center self-start">
+              <span className="text-xs text-zen-grey-600 font-normal">
+                Incidencia
+              </span>
             </div>
           </div>
 
+          {/* Observaciones Section */}
+          {service.comment && (
+            <div className="flex flex-col gap-2 mb-10">
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4 text-zen-grey-600" viewBox="0 0 16 16" fill="none">
+                  <use href="/icons.svg#chat-dots" />
+                </svg>
+                <span className="text-sm font-semibold text-zen-grey-600">
+                  Observaciones
+                </span>
+              </div>
+              <div
+                ref={observacionesRef}
+                className="text-base text-zen-grey-600 font-normal overflow-hidden"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: isObservacionesExpanded ? 'unset' : 2,
+                  WebkitBoxOrient: 'vertical',
+                  lineHeight: '1.47',
+                }}
+              >
+                {service.comment}
+              </div>
+              {showLeerMas && (
+                <button
+                  onClick={() => setIsObservacionesExpanded(!isObservacionesExpanded)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-zen-grey-100 transition-colors self-end"
+                >
+                  <span className="text-xs font-semibold text-zen-blue-500">
+                    {isObservacionesExpanded ? 'Leer menos' : 'Leer más'}
+                  </span>
+                  <svg
+                    className="w-4 h-4 text-zen-blue-500"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <use href={`/icons.svg#${isObservacionesExpanded ? 'arrow-up' : 'arrow-down'}`} />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Success Message */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
               <div className="flex items-center">
                 <Check className="w-5 h-5 text-green-500 mr-3" />
                 <div>
@@ -306,9 +396,11 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="bg-red-50 border border-red-200 rounded p-4 mb-6">
               <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
+                <svg className="w-5 h-5 text-red-500 mr-3" viewBox="0 0 16 16" fill="none">
+                  <use href="/icons.svg#wrench" />
+                </svg>
                 <div>
                   <h3 className="text-sm font-medium text-red-800">Error</h3>
                   <p className="text-sm text-red-700 mt-1">{error}</p>
@@ -317,56 +409,49 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
             </div>
           )}
 
-          <div className="space-y-6">
-            {/* File Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Subir Archivo (Opcional)
-              </label>
-              <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${
-                  dragOver
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                {selectedFile ? (
-                  <div className="space-y-3">
-                    <FileText className="w-12 h-12 text-green-500 mx-auto" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(selectedFile.size)}
-                      </p>
+          {/* Tu respuesta Section */}
+          <div className="flex flex-col gap-1 mb-10">
+            <label className="text-sm font-medium text-zen-grey-700">
+              Tu respuesta
+            </label>
+            <div className="border border-zen-grey-300 rounded overflow-hidden">
+              {/* Text area */}
+              <div className="bg-white p-4">
+                <textarea
+                  value={textContent}
+                  onChange={(e) => setTextContent(e.target.value)}
+                  disabled={submitting}
+                  placeholder="Escribe tu respuesta aquí"
+                  className="w-full text-base text-zen-grey-600 font-normal placeholder:text-zen-grey-500 resize-none focus:outline-none disabled:opacity-50"
+                  rows={4}
+                  style={{ lineHeight: '1.47' }}
+                />
+
+                {/* Files and Upload Button */}
+                <div className="flex flex-col gap-4 mt-4">
+                  {/* Display uploaded file */}
+                  {selectedFile && (
+                    <div className="flex flex-wrap gap-2">
+                      <div className="bg-white border border-zen-grey-300 rounded p-2 flex items-center gap-6">
+                        <div className="flex items-center gap-1">
+                          <FileText className="w-4 h-4 text-zen-grey-600" />
+                          <span className="text-sm font-medium text-zen-grey-600 truncate">
+                            {selectedFile.name}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedFile(null)}
+                          disabled={submitting}
+                          className="shrink-0 hover:text-red-600 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="w-5 h-5 text-zen-grey-600" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setSelectedFile(null)}
-                      disabled={submitting}
-                      className="text-sm text-red-600 hover:text-red-800 transition-colors disabled:opacity-50"
-                    >
-                      Quitar archivo
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <Upload
-                      className={`w-12 h-12 mx-auto ${
-                        dragOver ? 'text-blue-500' : 'text-gray-400'
-                      }`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Arrastra un archivo aquí
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        o haz clic para seleccionar
-                      </p>
-                    </div>
+                  )}
+
+                  {/* Adjuntar archivo button */}
+                  <div>
                     <input
                       type="file"
                       onChange={handleFileSelect}
@@ -377,79 +462,43 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
                     />
                     <label
                       htmlFor="incidence-file-upload"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200 cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-zen-grey-950 rounded cursor-pointer hover:bg-zen-grey-100 transition-colors"
                     >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Seleccionar Archivo
+                      <span className="text-xs font-semibold text-zen-grey-950">
+                        Adjuntar archivo
+                      </span>
+                      <svg className="w-4 h-4 text-zen-grey-950" viewBox="0 0 12 13" fill="none">
+                        <use href="/icons.svg#paperclip" />
+                      </svg>
                     </label>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Text Content Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Descripción o Comentarios (Opcional)
-              </label>
-              <textarea
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-                disabled={submitting}
-                placeholder="Describe la incidencia, las acciones tomadas, o cualquier información relevante..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
-                rows={6}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Caracteres: {textContent.length}
-              </p>
-            </div>
-
-            {/* Requirement Notice */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FileText className="w-5 h-5 text-blue-600 mr-3 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-900">
-                    Requisitos
-                  </h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Debes proporcionar al menos un archivo <strong>o</strong>{' '}
-                    escribir una descripción. No es necesario completar ambos
-                    campos.
-                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
-          <button
-            onClick={handleClose}
-            disabled={submitting}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors duration-200"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="flex items-center px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Resolver Incidencia
-              </>
-            )}
-          </button>
+          {/* Submit Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="w-[205px] flex items-center justify-center gap-2 px-4 py-3 bg-zen-error-200 text-zen-error-900 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zen-error-300"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-base font-semibold">Procesando...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <use href="/icons.svg#wrench" />
+                  </svg>
+                  <span className="text-base font-semibold">Resolver incidencia</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

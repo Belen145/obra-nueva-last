@@ -39,7 +39,7 @@ export function ServiceIncidenceInfo({ service }: { service: any }) {
         serviceTypeStatuses={serviceTypeStatuses}
         isIncidence={service.services_status?.is_incidence}
       />
-      <ServiceObservations service={service} />
+      {/* <ServiceObservations service={service} /> */}
     </div>
   );
 }

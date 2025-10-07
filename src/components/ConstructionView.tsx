@@ -644,6 +644,7 @@ export default function ConstructionView() {
                                   const isSinGestionar = service.services_status?.name === 'Sin Gestionar';
                                   const isEnRevision = service.services_status?.name === 'En Revisión';
                                   const isActivated = service.services_status?.name === 'Activado';
+                                  const isCanceled = service.services_status?.name === 'Cancelado';
                                   const noActiveStep = currentIndex === -1;
                                   // const isActivated = service.services_status?.is_active === true;
 
@@ -652,8 +653,8 @@ export default function ConstructionView() {
 
                                   // Determinar color de la barra de progreso
                                   if (isSinGestionar) {
-                                    progressBarColor = '#d0d3dd'; // Rosa para Sin gestionar
-                                  } else if (isEnRevision || noActiveStep) {
+                                    progressBarColor = '#d0d3dd'; // Gris para Sin gestionar
+                                  } else if (isEnRevision || isCanceled || noActiveStep) {
                                     showProgressBar = false; // No mostrar barra para En Revisión o sin step activo
                                   } else if (isActivated) {
                                     progressBarColor = '#78EC95'; // Verde para activado
