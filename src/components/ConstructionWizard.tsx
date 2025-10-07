@@ -266,6 +266,18 @@ export default function ConstructionWizard({
     }
   };
 
+  
+    const getIconByServiceName = (serviceName: string): string => {
+      const icons: Record<string, string> = {
+        'Luz - Obra': '/icons.svg#luz-obra',
+        'Luz - Definitiva': '/icons.svg#luz-definitiva',
+        'Agua - Obra': '/icons.svg#agua-obra',
+        'Agua - Definitiva': '/icons.svg#agua-definitiva',
+      };
+      return icons[serviceName] || '/icons.svg#building'; 
+    };
+
+              
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -340,45 +352,49 @@ export default function ConstructionWizard({
         </h3>
       </div> */}
 
+      <h4 className="font-semibold text-gray-900 mt-4">Nombre de la obra</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nombre de la Obra *
+            Nombre de la Obra <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="text"
             value={step1Data.name}
             onChange={(e) => handleStep1Change('name', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-hidden"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Residencial Los Pinos"
           />
         </div>
 
         <div>
+          <h4 className="font-semibold text-gray-900 my-4">Número de viviendas</h4>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Número de Viviendas *
+            Número de Viviendas <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="number"
             value={step1Data.housing_count}
             onChange={(e) => handleStep1Change('housing_count', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 24"
             min="1"
           />
+          <h4 className="font-semibold text-gray-900 mt-10">Dirección de la obra</h4>
+
         </div>
 
         <div></div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Calle *
+            Calle <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="text"
             value={step1Data.street}
             onChange={(e) => handleStep1Change('street', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Calle Mayor"
           />
         </div>
@@ -391,46 +407,46 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.number}
             onChange={(e) => handleStep1Change('number', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 123"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Provincia *
+            Provincia <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="text"
             value={step1Data.province}
             onChange={(e) => handleStep1Change('province', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Madrid"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Municipio *
+            Municipio <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="text"
             value={step1Data.municipality}
             onChange={(e) => handleStep1Change('municipality', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Madrid"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Código Postal *
+            Código Postal <span className="text-zen-blue-500">*</span>
           </label>
           <input
             type="text"
             value={step1Data.postal_code}
             onChange={(e) => handleStep1Change('postal_code', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 28001"
           />
         </div>
@@ -448,12 +464,12 @@ export default function ConstructionWizard({
       </div> */}
 
       {/* Información de la Sociedad */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Datos de la Sociedad</h4>
+      <div>
+        <h4 className="font-semibold text-gray-900 my-4">Datos de la sociedad</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre de la Sociedad *
+              Nombre de la sociedad <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -461,32 +477,32 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('society_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: Constructora ABC S.L."
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              CIF *
+              CIF de la sociedad <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
               value={step2Data.society_cif}
               onChange={(e) => handleStep2Change('society_cif', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: B12345678"
             />
           </div>
         </div>
 
-        <h5 className="font-medium text-gray-900 mt-6 mb-4">
-          Dirección Fiscal
-        </h5>
+        <h4 className="font-semibold text-gray-900 mb-4 mt-10">
+          Dirección fiscal
+        </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Calle *
+              Calle <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -494,7 +510,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_street', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -508,7 +524,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_number', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -522,7 +538,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_block', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -536,7 +552,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_staircase', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -550,7 +566,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_floor', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -564,13 +580,13 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_letter', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Provincia *
+              Provincia <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -578,13 +594,13 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_province', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Municipio *
+              Municipio <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -592,13 +608,13 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_municipality', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Código Postal *
+              Código Postal <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -606,21 +622,21 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_postal_code', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Información del Responsable */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">
-          Datos del Responsable
+      <div>
+        <h4 className="font-semibold text-gray-900 mb-4 mt-10">
+          Datos personales del responsable
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre *
+              Nombre <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -628,13 +644,13 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_first_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Apellidos *
+              Apellidos <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -642,13 +658,13 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_last_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              DNI *
+              DNI / NIE / CIF / Pasaporte <span className="text-zen-blue-500">*</span>
             </label>
             <input
               type="text"
@@ -656,10 +672,15 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_dni', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: 12345678A"
             />
+            <h4 className="font-semibold text-gray-900 mt-10">
+              Datos de contacto del responsable
+            </h4>
           </div>
+
+          <div></div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -671,14 +692,14 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_phone', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: 600123456"
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Correo Electrónico
+              Email
             </label>
             <input
               type="email"
@@ -686,7 +707,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_email', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: responsable@empresa.com"
             />
           </div>
@@ -717,7 +738,7 @@ export default function ConstructionWizard({
             <button
               key={serviceId}
               onClick={() => handleServiceChange(serviceId, 'selected', !service.selected)}
-              className={`w-[218.5px] h-[164px] flex flex-col gap-3 p-6 rounded-lg border transition-all ${
+              className={`w-[218.5px] flex flex-col gap-3 p-6 rounded-lg border transition-all ${
                 service.selected
                   ? 'bg-zen-blue-15 border-2 border-zen-blue-500'
                   : 'bg-white border border-zen-grey-400 hover:border-zen-blue-300'
@@ -727,9 +748,14 @@ export default function ConstructionWizard({
               <div className={`w-fit p-2 rounded ${
                 service.selected ? 'bg-zen-blue-500' : 'bg-zen-grey-200'
               }`}>
-                <Building className={`w-4 h-4 ${
+                <svg className={`w-4 h-4 ${
                   service.selected ? 'text-white' : 'text-zen-grey-600'
-                }`} />
+                }`} viewBox="0 0 16 16" fill="currentColor">
+                  <use href={getIconByServiceName(service.name)} />
+                </svg>
+                {/* <Building className={`w-4 h-4 ${
+                  service.selected ? 'text-white' : 'text-zen-grey-600'
+                }`} /> */}
               </div>
 
               {/* Content */}
@@ -752,14 +778,20 @@ export default function ConstructionWizard({
 
   // Helper function para obtener descripciones de servicios
   const getServiceDescription = (serviceName: string): string => {
+  
     const descriptions: Record<string, string> = {
-      'Luz obra': 'Suministro temporal de electricidad para los trabajos de construcción.',
-      'Luz definitiva': 'Conexión eléctrica final para el uso normal del inmueble.',
-      'Agua obra': 'Suministro provisional de agua para la fase de construcción.',
-      'Agua definitiva (AFS)': 'Conexión permanente de agua lista para el uso habitual de la edificación.',
+      'Luz - Obra': 'Suministro temporal de electricidad para los trabajos de construcción.',
+      'Luz - Definitiva': 'Conexión eléctrica final para el uso normal del inmueble.',
+      'Agua - Obra': 'Suministro provisional de agua para la fase de construcción.',
+      'Agua - Definitiva': 'Conexión permanente de agua lista para el uso habitual de la edificación.',
       'Telecomunicaciones': 'Servicio de telecomunicaciones (fibra, internet, telefonía)'
     };
     return descriptions[serviceName] || 'Servicio disponible para tu obra.';
+  };
+
+  // Validación de todos los pasos
+  const areAllStepsValid = (): boolean => {
+    return validateStep1() && validateStep2() && validateStep3();
   };
 
   const canProceed = () => {
@@ -795,8 +827,8 @@ export default function ConstructionWizard({
         </div> */}
 
         {/* Header */}
-        <div className="relative z-10 flex flex-col gap-6 px-0 py-4 border-b border-zen-grey-300">
-          <div className="flex items-center justify-between w-[924px] mx-auto">
+        <div className="relative z-10 flex flex-col gap-6 px-0 pt-4">
+          <div className="flex items-center justify-between w-[924px] mx-auto border-b border-zen-grey-300 pb-6">
             <div className="flex items-center gap-4">
               <div className="bg-zen-grey-200 flex items-center p-2 rounded">
                 <img src="/construction-icon.svg" alt="" className="w-5 h-5" />
@@ -816,7 +848,7 @@ export default function ConstructionWizard({
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!canProceed() || loading}
+                disabled={!areAllStepsValid() || loading}
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-zen-blue-500 text-zen-grey-25 rounded hover:bg-zen-blue-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
               >
                 <span className="text-base font-semibold" style={{ lineHeight: '1.47' }}>
@@ -982,26 +1014,47 @@ export default function ConstructionWizard({
             {currentStep === 3 && renderStep3()}
           </div>
 
-          {/* Footer with Next Button */}
-          <div className="flex items-center justify-end gap-6 bg-zen-grey-25 py-10 px-4">
-            <p
-              className="text-xs font-normal text-zen-grey-500 text-right w-60"
-              style={{ lineHeight: 'normal', letterSpacing: '0.048px' }}
-            >
-              Para poder seguir adelante tienes que rellenar todos los datos obligatorios
-            </p>
-            <button
-              onClick={currentStep < 3 ? handleNext : handleSubmit}
-              disabled={!canProceed() || (currentStep === 3 && loading)}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-zen-blue-500 text-zen-grey-25 rounded hover:bg-zen-blue-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            >
-              <span className="text-base font-semibold" style={{ lineHeight: '1.47' }}>
-                {currentStep < 3 ? 'Siguiente' : loading ? 'Creando...' : 'Crear obra'}
-              </span>
-              {currentStep < 3 && (
-                <img src="/arrow-right-blue.svg" alt="" className="w-6 h-6 brightness-0 invert" />
+          {/* Footer with Back and Next Buttons */}
+          <div className="flex items-center justify-between bg-zen-grey-25 py-10 px-4">
+            <div>
+              {currentStep > 1 && (
+                <button
+                  onClick={() => handleStepClick(currentStep - 1)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-zen-blue-500 rounded hover:bg-zen-blue-15 transition-colors"
+                >
+                  <svg className="w-6 h-6 text-zen-blue-500 rotate-90" viewBox="0 0 16 16" fill="currrentColor">
+                      <use href="/icons.svg#caret-down" />
+                    </svg>
+
+                  <span className="text-base font-semibold text-zen-blue-500" style={{ lineHeight: '1.47' }}>
+                    Volver
+                  </span>
+                </button>
               )}
-            </button>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              {currentStep === 1 && !validateStep1() && (
+                <p
+                  className="text-xs font-normal text-zen-grey-500 text-right w-60"
+                  style={{ lineHeight: 'normal', letterSpacing: '0.048px' }}
+                >
+                  Para poder seguir adelante tienes que rellenar todos los datos obligatorios
+                </p>
+              )}
+              {currentStep !== 3 && (
+                <button
+                  onClick={handleNext}
+                  disabled={!canProceed()}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-zen-blue-500 text-zen-grey-25 rounded hover:bg-zen-blue-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span className="text-base font-semibold" style={{ lineHeight: '1.47' }}>
+                    Siguiente
+                  </span>
+                  <img src="/arrow-right-blue.svg" alt="" className="w-6 h-6 brightness-0 invert" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
