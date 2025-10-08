@@ -47,7 +47,7 @@ export default function Login() {
             </div>
 
             <div className='image-wrapper flex justify-center mt-[10px]'>
-                <img className="w-[480px]" src="/public/login-mujer.png" alt="" />
+                <img className="w-[480px]" src="/login-mujer.png" alt="" />
             </div>
 
             <p className='text-zen-blue-950 text-[12px] absolute bottom-[-48px] pl-[115px]'>Zenova {new Date().getFullYear()} - Todos los derechos reservados</p>
