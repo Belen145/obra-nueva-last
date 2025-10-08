@@ -26,7 +26,17 @@ export default function ServiceDocumentsCategoryPage() {
   const debounceTimeouts = useRef<Record<number, NodeJS.Timeout>>({});
   const { serviceId, category } = useParams();
   const navigate = useNavigate();
-  // const [service, setService] = useState<any>(null); // No se usa
+
+  const getIconByServiceName = (serviceName: string): string => {
+    const icons: Record<string, string> = {
+      'Luz - Obra': '/icons.svg#luz-obra',
+      'Luz - Definitiva': '/icons.svg#luz-definitiva',
+      'Agua - Obra': '/icons.svg#agua-obra',
+      'Agua - Definitiva': '/icons.svg#agua-definitiva',
+    };
+    return icons[serviceName] || '/icons.svg#building';
+  };
+  const [service, setService] = useState<any>(null);
   type RequiredDocument = {
     id: number;
     service_required_document_id: number;
@@ -162,11 +172,11 @@ export default function ServiceDocumentsCategoryPage() {
       // Obtener servicio
       const { data: serviceData, error: serviceError } = await supabase
         .from('services')
-        .select(`*, service_type (id, name), construction (id, name, address)`) // simplificado
+        .select(`*, service_type (id, name), construction (id, name, address)`)
         .eq('id', serviceId)
         .single();
       if (serviceError) throw serviceError;
-      // setService(serviceData); // Eliminado porque no se usa
+      setService(serviceData);
 
       // Obtener documentos requeridos filtrados por categoría
       const { data: requiredDocsData, error: requiredDocsError } =
@@ -415,14 +425,30 @@ export default function ServiceDocumentsCategoryPage() {
     }
   };
 
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    // Descarga directa usando un enlace temporal
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (fileUrl: string, fileName: string) => {
+    console.log('[handleDownload] fileUrl:', fileUrl, 'fileName:', fileName);
+    
+    try {
+      // Fetch el archivo
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      
+      // Crear un objeto URL para el blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Crear y hacer click en un enlace temporal
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error al descargar el archivo:', error);
+    }
   };
 
   const handleDeleteDocument = async (documentId: number, fileUrl?: string) => {
@@ -455,52 +481,100 @@ export default function ServiceDocumentsCategoryPage() {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <span className="ml-4 text-gray-600">Cargando documentos...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="bg-[#fcfcfc] min-h-screen p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="p-6">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 mb-6"
-            >
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Volver
-            </button>
-            <div className="text-red-700 font-semibold">{error}</div>
-          </div>
+          <div className="text-red-700 font-semibold">{error}</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 mb-6"
-      >
-        <ArrowLeft className="w-5 h-5 mr-2" />
-        Volver
-      </button>
-      <div className="flex items-center mb-6">
-        <FileText className="w-6 h-6 text-blue-600 mr-3" />
-        <h1 className="text-2xl font-bold text-gray-900">
-          Documentos de la categoría: {category}
-        </h1>
+    <div className="bg-[#fcfcfc] min-h-screen relative overflow-hidden">
+      {/* Gradiente de fondo */}
+      <div className="absolute top-[-150px] left-1/2 transform -translate-x-1/2 translate-x-[200px] w-[1000px] h-[1000px] pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-[800px] h-[800px] rounded-full bg-blue-300 opacity-40 blur-[120px]"></div>
+        <div className="absolute top-[100px] left-[100px] w-[700px] h-[700px] rounded-full bg-purple-300 opacity-30 blur-[100px]"></div>
+        <div className="absolute top-[150px] left-[150px] w-[600px] h-[600px] rounded-full bg-blue-200 opacity-25 blur-[80px]"></div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        {requiredDocuments.length === 0 ? (
-          <p className="text-gray-600">
-            No hay documentos requeridos para esta categoría.
-          </p>
-        ) : (
-          <div className="space-y-6">
+
+      {/* Header con Breadcrumbs */}
+      <div className="flex items-center justify-between px-[164px] py-4 relative z-10">
+        <div className="flex gap-8 items-center py-6">
+          {/* Botón Volver */}
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-zen-grey-200 flex gap-2 items-center justify-center px-2 py-1 rounded-[1000px] hover:bg-zen-grey-300 transition-colors"
+          >
+            <svg className="w-4 h-4 shrink-0 text-zen-grey-500 rotate-90" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="/icons.svg#caret-down" />
+            </svg>
+            <span className="font-figtree font-semibold text-xs text-[#0f1422] whitespace-pre">
+              Volver
+            </span>
+          </button>
+
+          {/* Breadcrumbs */}
+          <div className="flex gap-1 items-center">
+            <span className="font-figtree font-semibold text-sm text-[#0f1422] whitespace-pre">
+              {service?.construction?.name || 'Obra nueva'}
+            </span>
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <path d="M7.5 15L12.5 10L7.5 5" stroke="#666e85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-figtree font-semibold text-sm text-zen-grey-600 whitespace-pre">
+              Documentación {service?.service_type?.name}
+            </span>
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <path d="M7.5 15L12.5 10L7.5 5" stroke="#666e85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-figtree font-semibold text-sm text-zen-grey-600 whitespace-pre">
+              {category}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido Principal */}
+      <div className="px-[164px] pt-0 pb-10 relative z-10">
+        <div className="flex flex-col gap-10 w-full max-w-[1112px]">
+          {/* Badge + Título */}
+          <div className="flex flex-col gap-4 w-full max-w-[735px]">
+            {/* Badge del servicio */}
+            <div className="bg-zen-blue-50 flex gap-1 items-center px-2 py-1 rounded w-fit">
+              <svg className="w-4 h-4 text-zen-grey-600">
+                <use href={getIconByServiceName(service?.service_type?.name || '')} />
+              </svg>
+              <span className="font-figtree font-semibold text-sm text-zen-grey-600">
+                {service?.service_type?.name}
+              </span>
+            </div>
+
+            {/* Título y descripción */}
+            <div className="flex flex-col gap-2">
+              <h1 className="font-figtree font-semibold text-[21px] leading-[1.5] text-[#000a29]">
+                {category}
+              </h1>
+              <p className="font-figtree font-normal text-base leading-[1.47] text-[#0a110f]">
+                {category}
+              </p>
+            </div>
+          </div>
+
+          {/* Lista de documentos requeridos */}
+          <div className="flex flex-col gap-10 w-full max-w-[735px]">
+            {requiredDocuments.length === 0 ? (
+              <p className="text-gray-600">
+                No hay documentos requeridos para esta categoría.
+              </p>
+            ) : (
+              <>
             {/* Ordenar: primero los de texto, luego los de archivo */}
             {(() => {
               const textDocs = requiredDocuments.filter(
@@ -529,24 +603,21 @@ export default function ServiceDocumentsCategoryPage() {
                 return (
                   <div
                     key={requiredDoc.document_type_id}
-                    className="p-4 bg-gray-50 border rounded-lg flex items-center justify-between"
+                    className="flex flex-col gap-4 w-full"
                   >
-                    <div className="flex items-center">
-                      {getStatusIcon(existingDoc)}
-                      <div className="ml-4">
-                        <h4 className="text-md font-medium text-gray-900">
+                    {requiresFile === false ? (
+                      // Input de texto
+                      <div className="flex flex-col gap-4 w-full">
+                        <p className="font-figtree font-semibold text-base leading-[1.47] text-black">
                           {requiredDoc.documentation_type?.name ||
                             `Documento ${requiredDoc.document_type_id}`}
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {requiresFile === false ? (
-                        // ...existing code for text documents...
-                        <div className="flex flex-col gap-1 min-w-[250px]">
-                          <textarea
-                            className="border border-gray-300 rounded px-2 py-1 text-sm resize-none min-h-[40px]"
-                            placeholder="Introduce el texto..."
+                          <span className="font-normal text-zen-blue-500">*</span>
+                        </p>
+                        <div className="flex flex-col gap-1 w-[348px]">
+                          <input
+                            type="text"
+                            className="bg-white border border-zen-grey-300 rounded px-4 py-3 text-base font-figtree text-zen-blue-950 focus:outline-none focus:border-zen-blue-500"
+                            placeholder="XXXXXXXXXXXXXXXXXXXX"
                             value={
                               textValues[requiredDoc.document_type_id] ?? ''
                             }
@@ -580,77 +651,39 @@ export default function ServiceDocumentsCategoryPage() {
                               }, 1000);
                             }}
                           />
-                          <span className="text-xs text-gray-400 h-4">
+                          <span className="text-xs text-zen-grey-400 h-4 font-figtree">
                             {savingTextId === requiredDoc.document_type_id
                               ? 'Guardando...'
                               : savedTextId === requiredDoc.document_type_id
                               ? 'Guardado'
                               : ''}
                           </span>
-                          {(
-                            textValues[requiredDoc.document_type_id] ?? ''
-                          ).trim() && (
-                            <div className="mt-2">
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Vista previa del texto aportado:
-                              </label>
-                              <div className="whitespace-pre-line bg-gray-50 border border-gray-200 rounded p-2 text-gray-800 text-xs">
-                                {textValues[requiredDoc.document_type_id]}
-                              </div>
-                            </div>
-                          )}
                         </div>
+                      </div>
                       ) : (
-                        <>
-                          {/* Mostrar nombre del archivo subido si existe y no hay uno nuevo en proceso */}
-                          {existingFileName &&
-                            !fileUploadStates[requiredDoc.document_type_id]
-                              ?.selectedFile && (
-                              <div className="flex items-center bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-2">
-                                <FileText className="w-5 h-5 text-blue-500 mr-2" />
-                                <span
-                                  className="text-sm text-blue-900 font-medium mr-4 truncate max-w-[180px]"
-                                  title={existingFileName}
-                                >
-                                  {existingFileName}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    handleDownload(
-                                      existingDoc.link ?? '',
-                                      existingFileName
-                                    )
-                                  }
-                                  className="p-1 text-gray-400 hover:text-green-500 hover:bg-green-100 rounded transition-colors duration-200"
-                                  title="Descargar documento"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleDeleteDocument(
-                                      existingDoc.id,
-                                      existingDoc.link
-                                    )
-                                  }
-                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-100 rounded transition-colors duration-200"
-                                  title="Eliminar documento"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
-                          <div className="w-full">
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                              Subir Archivo
-                            </label>
+                        // Input de archivo
+                        <div className="flex flex-col gap-4 w-full">
+                          <p className="font-figtree font-semibold text-base leading-[1.47] text-black">
+                            {requiredDoc.documentation_type?.name ||
+                              `Documento ${requiredDoc.document_type_id}`}
+                            <span className="font-normal text-zen-blue-500">*</span>
+                          </p>
+                          <div className="flex flex-col gap-4 w-full">
+                            {/* Área de subida de archivos */}
                             <div
-                              className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${
-                                fileUploadStates[requiredDoc.document_type_id]
-                                  ?.dragOver
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                              className={`border-2 border-dotted rounded-md p-4 text-center transition-all ${
+                                existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                  ? 'bg-zen-grey-100 border-zen-grey-300 cursor-not-allowed'
+                                  : fileUploadStates[requiredDoc.document_type_id]?.dragOver
+                                  ? 'border-zen-blue-500 bg-zen-blue-50 cursor-pointer'
+                                  : 'bg-white border-zen-blue-500 hover:bg-zen-blue-50 cursor-pointer'
                               }`}
+                              onClick={() => {
+                                const isDisabled = existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile;
+                                if (!isDisabled) {
+                                  document.getElementById(`document-file-upload-${requiredDoc.document_type_id}`)?.click();
+                                }
+                              }}
                               onDragOver={(e) =>
                                 handleDragOver(requiredDoc.document_type_id, e)
                               }
@@ -661,155 +694,146 @@ export default function ServiceDocumentsCategoryPage() {
                                 handleDrop(requiredDoc.document_type_id, e)
                               }
                             >
-                              {fileUploadStates[requiredDoc.document_type_id]
-                                ?.selectedFile ? (
-                                <div className="space-y-3">
-                                  <FileText className="w-12 h-12 text-green-500 mx-auto" />
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {
-                                        fileUploadStates[
-                                          requiredDoc.document_type_id
-                                        ]?.selectedFile?.name
-                                      }
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      {fileUploadStates[
-                                        requiredDoc.document_type_id
-                                      ]?.selectedFile &&
-                                      typeof fileUploadStates[
-                                        requiredDoc.document_type_id
-                                      ]?.selectedFile.size === 'number'
-                                        ? `${(
-                                            fileUploadStates[
-                                              requiredDoc.document_type_id
-                                            ]!.selectedFile!.size / 1024
-                                          ).toFixed(2)} KB`
-                                        : ''}
-                                    </p>
-                                  </div>
-                                  <button
-                                    onClick={() =>
-                                      setFileUploadStates((prev) => ({
-                                        ...prev,
-                                        [requiredDoc.document_type_id]: {
-                                          ...prev[requiredDoc.document_type_id],
-                                          selectedFile: null,
-                                          error: null,
-                                          successMessage: null,
-                                        },
-                                      }))
-                                    }
-                                    disabled={
-                                      fileUploadStates[
-                                        requiredDoc.document_type_id
-                                      ]?.submitting
-                                    }
-                                    className="text-sm text-red-600 hover:text-red-800 transition-colors disabled:opacity-50"
-                                  >
-                                    Quitar archivo
-                                  </button>
+                              <div className="flex flex-col gap-3 items-center">
+                                {/* Icono de upload */}
+                                <div className={`bg-zen-grey-100 rounded-full p-[9px] w-[44px] h-[44px] flex items-center justify-center ${
+                                  existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile ? 'opacity-50' : ''
+                                }`}>
+                                  <img
+                                    src={existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                      ? "/upload-simple-grey-icon.svg"
+                                      : "/upload-simple-icon.svg"}
+                                    alt=""
+                                    className="w-6 h-6"
+                                  />
                                 </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  <Upload
-                                    className={`w-12 h-12 mx-auto ${
-                                      fileUploadStates[
-                                        requiredDoc.document_type_id
-                                      ]?.dragOver
-                                        ? 'text-blue-500'
-                                        : 'text-gray-400'
-                                    }`}
-                                  />
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      Arrastra un archivo aquí
-                                    </p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      o haz clic para seleccionar
-                                    </p>
-                                  </div>
-                                  <input
-                                    type="file"
-                                    onChange={(e) =>
-                                      handleFileSelect(
-                                        requiredDoc.document_type_id,
-                                        e
-                                      )
-                                    }
-                                    disabled={
-                                      fileUploadStates[
-                                        requiredDoc.document_type_id
-                                      ]?.submitting ||
-                                      (existingFileName &&
-                                        !fileUploadStates[
-                                          requiredDoc.document_type_id
-                                        ]?.selectedFile)
-                                    }
-                                    className="hidden"
-                                    id={`document-file-upload-${requiredDoc.document_type_id}`}
-                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
-                                  />
-                                  <label
-                                    htmlFor={`document-file-upload-${requiredDoc.document_type_id}`}
-                                    className={`inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200 cursor-pointer disabled:opacity-50 ${
-                                      existingFileName &&
+
+                                {/* Texto */}
+                                <div className="flex flex-col gap-1 items-center text-center">
+                                  <p className={`font-figtree font-semibold text-sm leading-[1.25] ${
+                                    existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                      ? 'text-zen-grey-600'
+                                      : ''
+                                  }`}>
+                                    <span className={existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile ? '' : 'text-zen-blue-500'}>
+                                      Arrastra aquí tus archivos
+                                    </span>
+                                    {' '}
+                                    <span className="font-normal text-zen-grey-700">
+                                      o haz clic para subir
+                                    </span>
+                                  </p>
+                                  <p className="font-figtree font-normal text-xs leading-[1.35] text-zen-grey-500">
+                                    PDF, JPEG o PNG (max. 30 MB)
+                                  </p>
+                                </div>
+
+                                {/* Input file oculto */}
+                                <input
+                                  type="file"
+                                  onChange={(e) =>
+                                    handleFileSelect(
+                                      requiredDoc.document_type_id,
+                                      e
+                                    )
+                                  }
+                                  disabled={
+                                    fileUploadStates[
+                                      requiredDoc.document_type_id
+                                    ]?.submitting ||
+                                    (existingFileName &&
                                       !fileUploadStates[
                                         requiredDoc.document_type_id
-                                      ]?.selectedFile
-                                        ? 'opacity-50 pointer-events-none'
-                                        : ''
-                                    }`}
-                                  >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Seleccionar Archivo
-                                  </label>
+                                      ]?.selectedFile)
+                                  }
+                                  className="hidden"
+                                  id={`document-file-upload-${requiredDoc.document_type_id}`}
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Mensajes de estado */}
+                            {fileUploadStates[requiredDoc.document_type_id]?.submitting && (
+                              <div className="flex items-center text-zen-blue-500 text-sm font-figtree">
+                                <Upload className="w-4 h-4 mr-2 animate-spin" />
+                                Subiendo...
+                              </div>
+                            )}
+                            {fileUploadStates[requiredDoc.document_type_id]?.error && (
+                              <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700 font-figtree">
+                                {fileUploadStates[requiredDoc.document_type_id]?.error}
+                              </div>
+                            )}
+                            {fileUploadStates[requiredDoc.document_type_id]?.successMessage && (
+                              <div className="bg-green-50 border border-green-200 rounded p-2 text-sm text-green-700 font-figtree">
+                                {fileUploadStates[requiredDoc.document_type_id]?.successMessage}
+                              </div>
+                            )}
+
+                            {/* Documento subido - mostrar debajo del input */}
+                            {existingFileName && (
+                              <div className="bg-[#fcfcfc] border border-[#d0d3dd] rounded-lg flex items-center justify-between p-4 gap-4">
+                                {/* Nombre del archivo con check */}
+                                <div className="flex gap-1 items-start min-w-0 flex-1 overflow-hidden">
+                                  <svg className="w-6 h-6 shrink-0 text-zen-green-500">
+                                    <use href="/icons.svg#check-circle" />
+                                  </svg>
+                                  <p title={existingFileName} className="font-figtree font-medium text-base leading-[1.47] text-[#0f1422] truncate overflow-hidden text-ellipsis whitespace-nowrap">
+                                    {existingFileName}
+                                  </p>
                                 </div>
-                              )}
-                            </div>
-                            {fileUploadStates[requiredDoc.document_type_id]
-                              ?.error && (
-                              <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-sm text-red-700">
-                                {
-                                  fileUploadStates[requiredDoc.document_type_id]
-                                    ?.error
-                                }
+
+                                {/* Botones de descarga y eliminar */}
+                                <div className="flex gap-6 items-start shrink-0">
+                                  <button
+                                    onClick={() => handleDownload(existingDoc.link ?? '', existingFileName)}
+                                    className="bg-[#f2f3f7] flex items-center justify-center  rounded-[1000px] w-10 h-10 hover:bg-zen-grey-300 transition-colors"
+                                    title="Descargar documento"
+                                  >
+                                    <svg className="w-4 h-4 text-zen-blue-500">
+                                      <use href="/icons.svg#download" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteDocument(existingDoc.id, existingDoc.link)}
+                                    className="bg-[#f2f3f7] flex items-center justify-center  rounded-[1000px] w-10 h-10 hover:bg-zen-error-100 transition-colors"
+                                    title="Eliminar documento"
+                                  >
+                                    <svg className="w-4 h-4 text-zen-blue-500">
+                                      <use href="/icons.svg#trash" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </div>
                             )}
-                            {fileUploadStates[requiredDoc.document_type_id]
-                              ?.successMessage && (
-                              <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-2 text-sm text-green-700">
-                                {
-                                  fileUploadStates[requiredDoc.document_type_id]
-                                    ?.successMessage
-                                }
-                              </div>
-                            )}
-                            <div className="flex justify-end mt-4">
-                              {fileUploadStates[requiredDoc.document_type_id]
-                                ?.submitting && (
-                                <span className="flex items-center text-blue-600 text-sm">
-                                  <Upload className="w-4 h-4 mr-2 animate-spin" />
-                                  Subiendo...
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2 text-center">
-                              Formatos soportados: PDF, DOC, DOCX, JPG, JPEG,
-                              PNG, TXT
-                            </p>
                           </div>
-                        </>
+                        </div>
                       )}
-                    </div>
                   </div>
                 );
               });
             })()}
+
+            {/* Botón Footer - Volver a la documentación */}
+            <div className="flex justify-end w-full mt-6">
+              <button
+                onClick={() => navigate(`/servicios/${serviceId}/documentos`)}
+                className="flex gap-[3px] items-center justify-center px-0 py-3 rounded transition-colors hover:opacity-80"
+              >
+                <svg className="w-5 h-5 shrink-0 text-zen-blue-500 rotate-90 mt-[1px]" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="/icons.svg#caret-down" />
+                </svg>
+                <span className="font-figtree font-semibold text-base text-zen-blue-500 whitespace-pre">
+                  Volver a la documentación
+                </span>
+              </button>
+            </div>
+            </>
+          )}
           </div>
-        )}
+        </div>
       </div>
-      {/* No modal, solo área inline de subida */}
     </div>
   );
 }

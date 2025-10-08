@@ -183,7 +183,7 @@ export default function DocumentUploadModal({
 
           {/* File Upload Area */}
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${
+            className={`border-2 border-dotted rounded-lg p-6 text-center transition-all duration-300 ${
               dragOver
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'

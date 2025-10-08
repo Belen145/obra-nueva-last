@@ -21,9 +21,12 @@ function App() {
 
   const [activeView, setActiveView] = useState(getActiveView());
 
+  // Ocultar sidebar en rutas de servicios/documentos
+  const shouldShowSidebar = !location.pathname.includes('/servicios/');
+
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
+      {shouldShowSidebar && <Sidebar activeView={activeView} onViewChange={setActiveView} />}
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<ConstructionView />} />

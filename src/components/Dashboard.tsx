@@ -129,7 +129,7 @@ export default function Dashboard() {
           Acciones Rápidas
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200">
+          <button className="flex flex-col items-center p-4 rounded-lg border-2 border-dotted border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200">
             <Upload className="w-8 h-8 text-blue-500 mb-2" />
             <span className="text-sm font-medium text-gray-700">
               Subir Archivo

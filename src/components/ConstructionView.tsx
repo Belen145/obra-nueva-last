@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -28,6 +28,7 @@ import ServiceStatusManagement from './ServiceStatusManagement';
 import { ServiceIncidenceModal } from './ServiceIncidenceModal';
 import ConstructionWizard from './ConstructionWizard';
 import { DocumentUploadModalBlue } from './DocumentUploadModalBlue';
+import { DatePickerDropdown } from './DatePickerDropdown';
 import { supabase, Construction } from '../lib/supabase';
 
 /**
@@ -36,6 +37,15 @@ import { supabase, Construction } from '../lib/supabase';
  */
 export default function ConstructionView() {
   const navigate = useNavigate();
+  // Opciones de estado para el filtro
+  const statusOptions = [
+    { label: 'Todos', value: '' },
+    { label: 'Activa', value: 'Activa' },
+    { label: 'En progreso', value: 'En progreso' },
+    { label: 'Finalizada', value: 'Finalizada' },
+    { label: 'Cancelada', value: 'Cancelada' }
+  ];
+
   // Hooks personalizados para datos de obras y servicios
   const { constructions, loading, error, refetch } = useConstructions();
   const { getServices, getServicesCacheState, clearCache } = useServicesCache();
@@ -642,7 +652,6 @@ export default function ConstructionView() {
 
                                   // Determinar si mostrar barra de progreso y su color
                                   const isSinGestionar = service.services_status?.name === 'Sin Gestionar';
-                                  const isEnRevision = service.services_status?.name === 'En Revisión';
                                   const isActivated = service.services_status?.name === 'Activado';
                                   const isCanceled = service.services_status?.name === 'Cancelado';
                                   const noActiveStep = currentIndex === -1;
@@ -654,7 +663,7 @@ export default function ConstructionView() {
                                   // Determinar color de la barra de progreso
                                   if (isSinGestionar) {
                                     progressBarColor = '#d0d3dd'; // Gris para Sin gestionar
-                                  } else if (isEnRevision || isCanceled || noActiveStep) {
+                                  } else if (isCanceled || noActiveStep) {
                                     showProgressBar = false; // No mostrar barra para En Revisión o sin step activo
                                   } else if (isActivated) {
                                     progressBarColor = '#78EC95'; // Verde para activado
@@ -917,7 +926,7 @@ export default function ConstructionView() {
 
   return (
     <div className="p-6 pt-20 bg-zen-grey-0">
-      <div className="flex justify-between items-start pr-8 mb-6">
+      <div className="flex justify-between items-start mb-6">
         <div className="flex flex-col gap-4">
           <h2 className="text-[32px] font-semibold text-zen-grey-950 leading-[1.12]">
             Obra de construcción
@@ -993,31 +1002,16 @@ export default function ConstructionView() {
               {/* Dropdown Menu */}
               {isStatusDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 bg-white border border-zen-grey-200 rounded-lg shadow-lg z-50 min-w-[-webkit-fill-available]">
-                  <div
-                    className="px-4 py-2 text-sm text-zen-grey-950 hover:bg-zen-grey-50 cursor-pointer"
-                    onClick={() => {
-                      setStatusFilter('');
-                      setIsStatusDropdownOpen(false);
-                    }}
-                  >
-                    Todos
-                  </div>
-                  {Array.from(
-                    new Set(
-                      constructions
-                        .map((c) => c.construction_status?.name)
-                        .filter(Boolean)
-                    )
-                  ).map((status) => (
+                  {statusOptions.map((option) => (
                     <div
-                      key={status}
+                      key={option.value}
                       className="px-4 py-2 text-sm text-zen-grey-950 hover:bg-zen-grey-50 cursor-pointer"
                       onClick={() => {
-                        setStatusFilter(status);
+                        setStatusFilter(option.value);
                         setIsStatusDropdownOpen(false);
                       }}
                     >
-                      {status}
+                      {option.label}
                     </div>
                   ))}
                 </div>
@@ -1041,7 +1035,7 @@ export default function ConstructionView() {
                 <div className="px-2 min-w-[134px] flex-1 text-sm font-medium text-zen-grey-950">Viviendas</div>
                 <div className="px-2 min-w-[170px] flex-1 text-sm font-medium text-zen-grey-950">Fecha finalización</div>
                 <div className="px-2 min-w-[169px] flex-1 text-sm font-medium text-zen-grey-950">Estado</div>
-                <div className="px-2 max-w-[120px] flex-1 text-sm font-medium text-zen-grey-950">Detalle</div>
+                <div className="px-2 max-w-[135px] flex-1 text-sm font-medium text-zen-grey-950">Detalle</div>
               </div>
 
               {/* Rows */}
@@ -1116,51 +1110,17 @@ export default function ConstructionView() {
 
                     {/* Fecha finalización */}
                     <td className="px-2 min-w-[170px] flex-1 flex items-center">
-                      <div className="flex gap-1 items-center relative">
-                        <div className="bg-white rounded px-2 py-2 min-w-[108px] flex items-center justify-center">
-                          <span className="text-sm text-zen-grey-700">
-                            {construction.finish_date
-                              ? new Date(construction.finish_date).toLocaleDateString('es-ES', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric'
-                                })
-                              : 'DD/MM/AAAA'}
-                          </span>
-                        </div>
-                        <div className="relative">
-                          <button
-                            onClick={() => {
-                              const dateInput = document.getElementById(`date-${construction.id}`) as HTMLInputElement;
-                              dateInput?.showPicker?.();
-                            }}
-                            className="bg-zen-blue-50 rounded-full p-1 shrink-0 w-6 h-6 flex items-center justify-center"
-                          >
-                            <svg className="w-4 h-4 text-zen-blue-500" viewBox="0 0 16 16" fill="currentColor">
-                              <use href="/icons.svg#pencil" />
-                            </svg>
-                          </button>
-                          <input
-                            type="date"
-                            id={`date-${construction.id}`}
-                            className="absolute top-full left-0 mt-1 opacity-0 pointer-events-none"
-                            style={{ width: '1px', height: '1px' }}
-                            value={
-                              construction.finish_date
-                                ? construction.finish_date.slice(0, 10)
-                                : ''
-                            }
-                            onChange={async (e) => {
-                              const newDate = e.target.value;
-                              await supabase
-                                .from('construction')
-                                .update({ finish_date: newDate })
-                                .eq('id', construction.id);
-                              refetch();
-                            }}
-                          />
-                        </div>
-                      </div>
+                      <DatePickerDropdown
+                        value={construction.finish_date ? construction.finish_date.slice(0, 10) : null}
+                        onChange={async (newDate) => {
+                          await supabase
+                            .from('construction')
+                            .update({ finish_date: newDate })
+                            .eq('id', construction.id);
+                          refetch();
+                        }}
+                        constructionId={construction.id}
+                      />
                     </td>
 
                     {/* Estado */}
@@ -1171,15 +1131,15 @@ export default function ConstructionView() {
                     </td>
 
                     {/* Detalle */}
-                    <td className="px-2 max-w-[120px] flex-1 flex items-center">
+                    <td className="px-2 max-w-[135px] flex-1 flex items-center">
                       <button
                         onClick={() => toggleConstructionExpansion(construction.id)}
                         className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 11 13" fill="currentColor">
-                          <use href="/icons.svg#document" />
+                          <use href="/icons.svg#plus" />
                         </svg>
-                        Acceder
+                        Abrir detalle
                       </button>
                     </td>
                   </tr>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { setServiceStatus } from '../lib/setServiceStatus';
-import { ArrowLeft, FileText, Building2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function ServiceDocumentsPage(): JSX.Element {
@@ -106,121 +105,160 @@ export default function ServiceDocumentsPage(): JSX.Element {
   useEffect(() => {
     if (serviceId) fetchData();
   }, [serviceId]);
-  if (loading) return <div className="p-6">Cargando...</div>;
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate('/constructions')}
-          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 mr-4"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Volver a Obras
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center mb-2">
-            <Building2 className="w-6 h-6 text-blue-600 mr-3" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              {service.service_type.name}
-            </h1>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <span>Obra: {service.construction.name}</span>
+    <div className="bg-[#fcfcfc] min-h-screen relative overflow-hidden">
+      {/* Gradiente de fondo - Dimensiones y blur exactos de Figma */}
+      <div className="absolute top-[-104px] right-[160px] w-[1177px] h-[387px] pointer-events-none z-0 overflow-visible">
+        <div
+          className="absolute top-1/2 left-1/2 w-[491px] h-[1177px]"
+          style={{
+            background: 'radial-gradient(ellipse, rgba(147, 197, 253, 0.6) 0%, rgba(196, 181, 253, 0.4) 50%, transparent 100%)',
+            filter: 'blur(140px)',
+            transform: 'translate(-50%, -50%) rotate(90deg)',
+            borderRadius: '50%'
+          }}
+        ></div>
+      </div>
+
+      {/* Header con Breadcrumbs */}
+      <div className="flex items-center justify-between pl-[132px] pr-[164px] py-4 relative z-10">
+        <div className="flex gap-6 items-center px-8 py-6">
+          {/* Botón Volver */}
+          <button
+            onClick={() => navigate('/constructions')}
+            className="bg-zen-grey-200 flex gap-2 items-center justify-center px-2 py-1 rounded-[1000px] hover:bg-zen-grey-300 transition-colors"
+          >
+            <svg className="w-4 h-4 shrink-0 text-zen-grey-500 rotate-90" viewBox="0 0 16 16" fill="currentColor">
+                  <use href="/icons.svg#caret-down" />
+            </svg>
+            <span className="font-figtree font-semibold text-xs text-[#0f1422] whitespace-pre">
+              Volver
+            </span>
+          </button>
+
+          {/* Breadcrumbs */}
+          <div className="flex gap-1 items-center">
+            <span className="font-figtree font-semibold text-sm text-[#0f1422] whitespace-pre">
+              Obra nueva
+            </span>
+            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none">
+              <path d="M7.5 15L12.5 10L7.5 5" stroke="#666e85" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-figtree font-semibold text-sm text-zen-grey-600 whitespace-pre">
+              Documentación {service.service_type?.name}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Documentos por Categoría */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-            <FileText className="w-5 h-5 mr-3 text-blue-500" />
-            Documentos Requeridos
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Gestiona los documentos necesarios para este servicio
-          </p>
-        </div>
-        <div className="p-6">
-          <div className="space-y-6">
-            {categories.map((cat) => (
-              <div
-                key={cat.name}
-                className={`bg-gray-50 rounded-lg p-4 border border-blue-200 mb-4 cursor-pointer hover:bg-blue-50 transition-colors${
-                  selectedCategory === cat.name ? ' ring-2 ring-blue-400' : ''
-                }`}
-                onClick={() => {
-                  if (serviceId) {
-                    navigate(
-                      `/servicios/${serviceId}/documentos/categoria/${encodeURIComponent(
-                        cat.name
-                      )}`
-                    );
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {cat.name}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {cat.count} documento(s)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-green-700 font-semibold">
-                      Documentos aportados: {cat.aportados}
-                    </p>
-                    <p className="text-xs text-red-700 font-semibold">
-                      Nº de documentos por entregar: {cat.porEntregar}
-                    </p>
-                  </div>
+      {/* Contenido Principal */}
+      <div className="pl-[164px] pr-[164px] pt-0 pb-10 relative z-10">
+        <div className="flex flex-col gap-10 w-full">
+          <div className="flex flex-col gap-4 w-full max-w-[1112px]">
+            {/* Título Principal */}
+            <div className="flex flex-col gap-2 w-full max-w-[735px] ">
+                <div className="flex gap-2 items-center">
+                  <div className="bg-zen-grey-200 flex items-center p-2 rounded w-[fit-content]">
+                  <img src="/construction-icon.svg" alt="" className="w-4 h-4" />
                 </div>
-                {/* Listado de documentos de la categoría seleccionada */}
-                {selectedCategory === cat.name && (
-                  <div className="mt-4 ml-8">
-                    <h4 className="font-semibold text-blue-700 mb-2 text-sm">
-                      Documentos de la categoría:
-                    </h4>
-                    {categoryDocs.filter(
-                      (doc) =>
-                        (doc.documentation_type?.category ||
-                          'Sin categoría') === cat.name
-                    ).length === 0 ? (
-                      <p className="text-gray-500 text-xs">
-                        No hay documentos subidos para esta categoría.
-                      </p>
-                    ) : (
-                      <ul className="list-disc ml-4">
-                        {categoryDocs
-                          .filter(
-                            (doc) =>
-                              (doc.documentation_type?.category ||
-                                'Sin categoría') === cat.name
-                          )
-                          .map((doc) => (
-                            <li key={doc.id} className="text-xs text-gray-700">
-                              Documento
-                              <span className="ml-2 text-gray-400">
-                                (Estado: {doc.document_status_id})
-                              </span>
-                            </li>
-                          ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
+                <h3 className="font-figtree text-[21px] leading-[1.5] text-[#000a29]">
+                  Nombre de la obra: {service.construction?.name}
+                </h3>
               </div>
-            ))}
+              <h3 className="font-figtree text-[18px] leading-[1.5] text-[#000a29] mt-5">
+                Documentación <span className="font-semibold">{service.service_type?.name}</span> 
+              </h3>
+              <p className="font-figtree font-normal text-base leading-[1.47] text-[#0a110f]">
+                Sube la documentación necesaria para gestionar este suministro.
+              </p>
+            </div>
+
+            {/* Tarjetas de Categorías */}
+            <div className="flex flex-col gap-4 w-full max-w-[735px]">
+              {categories.map((cat) => (
+                <div
+                  key={cat.name}
+                  className="bg-white border border-[#d0d3dd] rounded-lg p-6 flex items-center justify-between cursor-pointer transition-colors hover:bg-zen-grey-50 hover:border-zen-grey-300 hover:border-zen-grey-400"
+                  onClick={() => {
+                    if (serviceId) {
+                      navigate(
+                        `/servicios/${serviceId}/documentos/categoria/${encodeURIComponent(
+                          cat.name
+                        )}`
+                      );
+                    }
+                  }}
+                >
+                  {/* Contenido de la tarjeta */}
+                  <div className="flex flex-col gap-6 w-[578px]">
+                    {/* Icono y Badge "Entregado" */}
+                    <div className="flex gap-6 items-start justify-between w-full">
+                      <div className="bg-zen-grey-200 flex gap-2 items-center p-2 rounded">
+                        <img src="/file-text-icon.svg" alt="" className="w-4 h-4" />
+                      </div>
+
+                      {/* Badge "Entregado" */}
+                      {cat.porEntregar === 0 && (
+                        <div className="bg-zen-green-100 border border-zen-green-500 flex gap-2 items-center justify-center px-2 py-1 rounded">
+                          <img src="/check-completado-icon.svg" alt="" className="w-4 h-4" />
+                          <span className="font-figtree font-normal text-sm text-zen-green-950 whitespace-pre">
+                            Entregado
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Título y Stats */}
+                    <div className="flex items-start justify-between w-full">
+                      {/* Título */}
+                      <div className="flex flex-col gap-1">
+                        <p className="font-figtree font-medium text-base leading-[1.47] text-[#0f1422]">
+                          {cat.name}
+                        </p>
+                        <p className="font-figtree font-normal text-sm leading-[1.25] text-zen-grey-700">
+                          {cat.porEntregar === 0
+                            ? 'Ya has subido toda la documentación de este apartado.'
+                            : 'Sube la documentación necesaria para este apartado.'}
+                        </p>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex flex-col items-start justify-center gap-[2px]">
+                        {/* Documentos aportados */}
+                        <div className="flex gap-1 items-center pl-2 pr-0 py-1 h-6 rounded">
+                          <img src="/procedures-icon.svg" alt="" className="w-3 h-3" />
+                          <span className="font-figtree font-normal text-xs leading-[1.35] text-[#0f1422] whitespace-pre">
+                            {cat.aportados} documentos aportados
+                          </span>
+                        </div>
+
+                        {/* Por entregar */}
+                        <div className="flex gap-1 items-center px-2 py-0">
+                          <img src="/upload-simple-icon.svg" alt="" className="w-3 h-3" />
+                          <span className="font-figtree font-normal text-xs leading-[1.35] text-zen-grey-700 whitespace-pre">
+                            {cat.porEntregar} por entregar
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Icono flecha derecha */}
+                  <img src="/caret-right-icon.svg" alt="" className="w-8 h-8" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

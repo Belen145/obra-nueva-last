@@ -84,6 +84,27 @@ Usar los colores personalizados de Zenova definidos en `tailwind.config.js` Para
 2. **SEGUNDO**: Si el icono NO está en el sprite, extraerlo del diseño de Figma proporcionado usando las herramientas MCP de Figma
 3. **TERCERO** (SOLO COMO ÚLTIMO RECURSO): Usar **Lucide React** únicamente si no se puede obtener el icono de las dos formas anteriores
 
+**FORMATO OBLIGATORIO para usar iconos del sprite:**
+
+**CORRECTO** - Usar siempre las etiquetas `<svg>` y `<use>` de esta forma:
+```html
+<svg className="w-4 h-4">
+  <use href="/icons.svg#nombre-icono" />
+</svg>
+```
+
+**INCORRECTO** - NO usar ninguna de estas formas:
+```html
+<!-- NO usar etiqueta img -->
+<img src="/icono.svg" />
+
+<!-- NO planchar el contenido SVG completo en el HTML -->
+<svg>
+  <path d="..." />
+  <circle cx="..." />
+</svg>
+```
+
 **Proceso de trabajo con iconos:**
 
 - SIEMPRE revisar primero el diseño de Figma para identificar el icono exacto a usar
