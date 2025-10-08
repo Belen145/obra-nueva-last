@@ -17,7 +17,9 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
     return new Date();
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const [openUpwards, setOpenUpwards] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -34,15 +36,29 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
     };
   }, [isOpen]);
 
-  // Detectar si debe abrirse hacia arriba o hacia abajo
+  // Detectar si debe abrirse hacia arriba o hacia abajo y calcular posición
   useEffect(() => {
-    if (isOpen && dropdownRef.current) {
-      const rect = dropdownRef.current.getBoundingClientRect();
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      const calendarHeight = 400; // Altura aproximada del calendario
+      const calendarHeight = 300; // Altura aproximada del calendario
+      const shouldOpenUpwards = spaceBelow < calendarHeight;
 
       // Si no hay espacio suficiente abajo, abrir hacia arriba
-      setOpenUpwards(spaceBelow < calendarHeight);
+      setOpenUpwards(shouldOpenUpwards);
+
+      // Calcular posición para fixed positioning
+      if (shouldOpenUpwards) {
+        setDropdownPosition({
+          top: rect.top - calendarHeight - 25,
+          left: rect.left
+        });
+      } else {
+        setDropdownPosition({
+          top: rect.bottom + 8,
+          left: rect.left
+        });
+      }
     }
   }, [isOpen]);
 
@@ -124,25 +140,32 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
     : 'Sin datos';
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div className="flex gap-1 items-center">
-        <div className="bg-white rounded px-2 py-2 min-w-[108px] flex items-center justify-center">
-          <span className="text-sm text-zen-grey-700">{displayValue}</span>
+    <>
+      <div className="relative" ref={buttonRef}>
+        <div className="flex gap-1 items-center">
+          <div className="bg-white rounded px-2 py-2 min-w-[108px] flex items-center justify-center">
+            <span className="text-sm text-zen-grey-700">{displayValue}</span>
+          </div>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="bg-zen-blue-50 rounded-full p-1 shrink-0 w-6 h-6 flex items-center justify-center"
+          >
+            <svg className="w-4 h-4 text-zen-blue-500" viewBox="0 0 16 16" fill="currentColor">
+              <use href="/icons.svg#pencil" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="bg-zen-blue-50 rounded-full p-1 shrink-0 w-6 h-6 flex items-center justify-center"
-        >
-          <svg className="w-4 h-4 text-zen-blue-500" viewBox="0 0 16 16" fill="currentColor">
-            <use href="/icons.svg#pencil" />
-          </svg>
-        </button>
       </div>
 
       {isOpen && (
-        <div className={`absolute left-0 bg-white rounded-lg shadow-lg border border-zen-grey-200 p-4 z-50 min-w-[280px] ${
-          openUpwards ? 'bottom-full mb-2' : 'top-full mt-2'
-        }`}>
+        <div
+          ref={dropdownRef}
+          className="fixed bg-white rounded-lg shadow-lg border border-zen-grey-200 p-4 z-50 min-w-[280px]"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`
+          }}
+        >
           {/* Header con mes y año */}
           <div className="flex items-center justify-between mb-4">
             <button
@@ -181,7 +204,7 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
           </div>
 
           {/* Botones de acción */}
-          <div className="mt-4 pt-3 border-t border-zen-grey-200 flex gap-2">
+          {/* <div className="mt-4 pt-3 border-t border-zen-grey-200 flex gap-2">
             <button
               onClick={() => {
                 const today = new Date();
@@ -199,9 +222,9 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
             >
               Cancelar
             </button>
-          </div>
+          </div> */}
         </div>
       )}
-    </div>
+    </>
   );
 }
