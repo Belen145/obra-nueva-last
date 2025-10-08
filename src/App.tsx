@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -9,6 +9,8 @@ import SearchView from './components/SearchView';
 import ServiceDocumentsPage from './components/ServiceDocumentsPage';
 import ServiceDocumentsCategoryPage from './components/ServiceDocumentsCategoryPage';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { supabase } from './lib/supabase';
+import Login from './components/Login';
 
 function App() {
   const location = useLocation();
@@ -24,6 +26,34 @@ function App() {
 
   // Ocultar sidebar en rutas de servicios/documentos
   const shouldShowSidebar = !location.pathname.includes('/servicios/');
+
+  const [user, setUser] = useState<any | null>(null);
+
+  // chequear sesión y escuchar cambios
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    console.log('Usuario actual:', user);
+    
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        console.log("session", session);
+        
+        setUser(session?.user ?? null);
+      }
+    );
+    return () => {
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  // si no hay usuario → mostramos login
+  if (!user) {
+    return (
+      <NotificationProvider>
+        <Login />
+      </NotificationProvider>
+    );
+  }
 
   return (
     <NotificationProvider>
@@ -48,5 +78,6 @@ function App() {
     </NotificationProvider>
   );
 }
+
 
 export default App;

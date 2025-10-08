@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 861 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 2819">
+<g id="Group 16">
+<ellipse id="Ellipse 2" cx="286.789" cy="381.578" rx="156.383" ry="167.898" fill="var(--fill-0, #0033CC)"/>
+<ellipse id="Ellipse 4" cx="362.082" cy="543.269" rx="156.383" ry="167.898" fill="var(--fill-0, #56C472)"/>
+<ellipse id="Ellipse 3" cx="415.642" cy="375.373" rx="156.383" ry="167.898" fill="var(--fill-0, #0033CC)"/>
+</g>
+<foreignObject x="-140.126" y="-140.126" width="1141.25" height="1180.25"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(70.06px);clip-path:url(#bgblur_0_13114_21927_clip_path);height:100%;width:100%"></div></foreignObject><ellipse id="Ellipse 5" data-figma-bg-blur-radius="140.126" cx="430.5" cy="450" rx="430.5" ry="450" fill="var(--fill-0, #F6F6F9)" fill-opacity="0.7"/>
+</g>
+<defs>
+<clipPath id="bgblur_0_13114_21927_clip_path" transform="translate(140.126 140.126)"><ellipse cx="430.5" cy="450" rx="430.5" ry="450"/>
+</clipPath></defs>
+</svg>

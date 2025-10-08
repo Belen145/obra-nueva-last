@@ -1,7 +1,7 @@
 // React and dependencies
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { supabase } from '../lib/supabase';
 // ---------------------------------------------
 // SidebarProps: Props for Sidebar component
 // ---------------------------------------------
@@ -9,7 +9,6 @@ interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
 }
-
 /**
  * Sidebar
  * Main navigation sidebar for the app. Displays menu items and handles navigation.
@@ -17,15 +16,12 @@ interface SidebarProps {
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   // --- Hooks ---
   const navigate = useNavigate();
-
   // --- Menu items ---
   const menuItems = [{ id: 'constructions', label: 'Obras', iconId: 'obras' }];
-
   const footerItems = [
     { id: 'logout', label: 'Cerrar sesión', iconId: 'logout' },
     { id: 'real-estate', label: 'Inmobiliaria', iconId: 'user' },
   ];
-
   // --- Handlers ---
   /**
    * Handles menu item click: updates view and navigates.
@@ -42,18 +38,20 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         break;
     }
   };
-
-  const handleFooterItemClick = (itemId: string) => {
+  const handleFooterItemClick = async (itemId: string) => {
     // Handle footer actions
     if (itemId === 'logout') {
-      // TODO: Implement logout
-      console.log('Logout clicked');
+      try {
+        await supabase.auth.signOut();
+        navigate('/login');
+      } catch (error) {
+        console.error('Error during logout:', error);
+      }
     } else if (itemId === 'real-estate') {
       // TODO: Navigate to real estate view
       console.log('Real estate clicked');
     }
   };
-
   // --- Render ---
   return (
     <div className="w-[199px] bg-zen-grey-25 h-full border-r border-zen-grey-200 flex flex-col relative">
@@ -70,7 +68,6 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
           <div className="absolute top-0 left-0 w-[526px] h-[526px] rounded-full bg-white/60 blur-[140px]" />
         </div>
       </div>
-
       {/* Content */}
       <div className="relative flex flex-col h-full px-3 py-6 gap-6">
         {/* Logo */}
@@ -79,7 +76,6 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
             <use href="/icons.svg#zenova-logo" />
           </svg>
         </div>
-
         {/* Menu */}
         <div className="flex flex-col justify-between flex-1">
           {/* Main navigation */}
@@ -104,7 +100,6 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
               );
             })}
           </nav>
-
           {/* Footer navigation */}
           <nav className="flex flex-col gap-3">
             {footerItems.map((item) => {
