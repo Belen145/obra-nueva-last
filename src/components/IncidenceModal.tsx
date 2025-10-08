@@ -153,7 +153,7 @@ const IncidenceModal: React.FC<IncidenceModalProps> = ({
           </div>
 
           {/* Error message */}
-          {error && (
+          {/* {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
               <div className="flex items-center">
                 <X className="w-5 h-5 text-red-500 mr-3" />
@@ -163,7 +163,7 @@ const IncidenceModal: React.FC<IncidenceModalProps> = ({
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* File upload section */}
           <div className="mb-6">

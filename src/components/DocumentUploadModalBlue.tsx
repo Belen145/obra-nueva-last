@@ -10,6 +10,7 @@ import {
   ServiceObservations,
 } from './ServiceProgressTracker';
 import { supabase } from '../lib/supabase';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface DocumentUploadModalBlueProps {
   isOpen: boolean;
@@ -22,11 +23,11 @@ interface DocumentUploadModalBlueProps {
 export const DocumentUploadModalBlue: React.FC<
   DocumentUploadModalBlueProps
 > = ({ isOpen, onClose, onSuccess, service, serviceTypeStatuses = [] }) => {
+  const { showNotification } = useNotification();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textContent, setTextContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isObservacionesExpanded, setIsObservacionesExpanded] = useState(false);
   const [showLeerMas, setShowLeerMas] = useState(false);
 
@@ -92,13 +93,24 @@ export const DocumentUploadModalBlue: React.FC<
       });
       if (docError)
         throw new Error(`Error al guardar documento: ${docError.message}`);
-      setSuccessMessage('Documento subido exitosamente.');
-      setTimeout(() => {
-        onSuccess();
-        handleClose();
-      }, 1500);
+
+      showNotification({
+        type: 'success',
+        title: 'Has subido la documentación con éxito',
+        body: 'Nuestro equipo revisará los datos aportados y seguiremos adelante con la gestión o levantaremos incidencia.'
+      });
+
+      onSuccess();
+      handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      const errorMessage = err instanceof Error ? err.message : 'Inténtalo de nuevo en unos minutos o escríbenos a atencion.cliente@zenovapro.com si el problema continúa.';
+      setError(errorMessage);
+
+      showNotification({
+        type: 'error',
+        title: 'Error al subir la documentación',
+        body: errorMessage
+      });
     } finally {
       setSubmitting(false);
     }
@@ -109,7 +121,6 @@ export const DocumentUploadModalBlue: React.FC<
       setSelectedFile(null);
       setTextContent('');
       setError(null);
-      setSuccessMessage(null);
       onClose();
     }
   };
@@ -267,25 +278,9 @@ export const DocumentUploadModalBlue: React.FC<
               )}
             </div>
           )}
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
-              <div className="flex items-center">
-                <Check className="w-5 h-5 text-green-500 mr-3" />
-                <div>
-                  <h3 className="text-sm font-medium text-green-800">
-                    ¡Éxito!
-                  </h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    {successMessage}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Error Message */}
-          {error && (
+          {/* {error && (
             <div className="bg-red-50 border border-red-200 rounded p-4 mb-6">
               <div className="flex items-center">
                 <svg className="w-5 h-5 text-red-500 mr-3" viewBox="0 0 16 16" fill="none">
@@ -297,7 +292,7 @@ export const DocumentUploadModalBlue: React.FC<
                 </div>
               </div>
             </div>
-          )}
+          )} */}
           {/* Tu respuesta Section */}
           <div className="flex flex-col gap-1 mb-10">
             <label className="text-sm font-medium text-zen-grey-700">

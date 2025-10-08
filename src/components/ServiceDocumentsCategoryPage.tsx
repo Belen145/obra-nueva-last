@@ -14,8 +14,10 @@ import {
 import { supabase } from '../lib/supabase';
 import { useDocumentUpload } from '../hooks/useDocumentUpload';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useNotification } from '../contexts/NotificationContext';
 
 export default function ServiceDocumentsCategoryPage() {
+  const { showNotification } = useNotification();
   // Estado para autoguardado de texto
   const [textDocumentIds, setTextDocumentIds] = useState<
     Record<number, number | null>
@@ -403,23 +405,36 @@ export default function ServiceDocumentsCategoryPage() {
           }`
         );
       }
+      showNotification({
+        type: 'success',
+        title: 'Documentación',
+        body: 'El documento se ha guardado exitosamente.'
+      });
+
       setFileUploadStates((prev) => ({
         ...prev,
         [documentTypeId]: {
           ...prev[documentTypeId],
           submitting: false,
           selectedFile: null,
-          successMessage: 'Documento subido exitosamente.',
         },
       }));
       fetchServiceData();
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+
+      showNotification({
+        type: 'error',
+        title: 'Error al subir el documento',
+        body: errorMessage
+      });
+
       setFileUploadStates((prev) => ({
         ...prev,
         [documentTypeId]: {
           ...prev[documentTypeId],
           submitting: false,
-          error: err instanceof Error ? err.message : 'Error desconocido',
+          error: errorMessage,
         },
       }));
     }

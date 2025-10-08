@@ -8,6 +8,7 @@ import UploadView from './components/UploadView';
 import SearchView from './components/SearchView';
 import ServiceDocumentsPage from './components/ServiceDocumentsPage';
 import ServiceDocumentsCategoryPage from './components/ServiceDocumentsCategoryPage';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 function App() {
   const location = useLocation();
@@ -25,24 +26,26 @@ function App() {
   const shouldShowSidebar = !location.pathname.includes('/servicios/');
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {shouldShowSidebar && <Sidebar activeView={activeView} onViewChange={setActiveView} />}
-      <main className="flex-1 overflow-auto">
-        <Routes>
-          <Route path="/" element={<ConstructionView />} />
-          <Route path="/constructions" element={<ConstructionView />} />
-          <Route
-            path="/servicios/:serviceId/documentos"
-            element={<ServiceDocumentsPage />}
-          />
-          <Route
-            path="/servicios/:serviceId/documentos/categoria/:category"
-            element={<ServiceDocumentsCategoryPage />}
-          />
-          <Route path="*" element={<ConstructionView />} />
-        </Routes>
-      </main>
-    </div>
+    <NotificationProvider>
+      <div className="flex h-screen bg-gray-50">
+        {shouldShowSidebar && <Sidebar activeView={activeView} onViewChange={setActiveView} />}
+        <main className="flex-1 overflow-auto bg-white">
+          <Routes>
+            <Route path="/" element={<ConstructionView />} />
+            <Route path="/constructions" element={<ConstructionView />} />
+            <Route
+              path="/servicios/:serviceId/documentos"
+              element={<ServiceDocumentsPage />}
+            />
+            <Route
+              path="/servicios/:serviceId/documentos/categoria/:category"
+              element={<ServiceDocumentsCategoryPage />}
+            />
+            <Route path="*" element={<ConstructionView />} />
+          </Routes>
+        </main>
+      </div>
+    </NotificationProvider>
   );
 }
 

@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  X,
-  Building2,
-  Save,
   ChevronRight,
-  ChevronLeft,
-  MapPin,
-  Users,
-  Building,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useConstructionData } from '../hooks/useConstructionData';
 import { useServiceCreation } from '../hooks/useServiceCreation';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface ConstructionWizardProps {
   onClose: () => void;
@@ -72,6 +66,7 @@ export default function ConstructionWizard({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const { statuses, companies } = useConstructionData();
   const { createMultipleServices } = useServiceCreation();
+  const { showNotification } = useNotification();
 
   // Estado para datos del paso 1 (obra)
   const [step1Data, setStep1Data] = useState<Step1Data>({
@@ -338,9 +333,19 @@ export default function ConstructionWizard({
       }
 
       onSuccess(construction.id);
+      showNotification({
+        type: 'success',
+        title: 'Obra creada correctamente',
+        body: 'Ya está disponible en la parte superior de la tabla.'
+      });
+
     } catch (error) {
       console.error('Error creating construction:', error);
-      alert('Error al crear la obra: ' + (error as Error).message);
+      showNotification({
+        type: 'error',
+        title: 'Error al crear la obra',
+        body: 'Inténtalo de nuevo en unos minutos o escríbenos a atencion.cliente@zenovapro.com si el problema continúa.'
+      });
     } finally {
       setLoading(false);
     }
@@ -364,7 +369,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.name}
             onChange={(e) => handleStep1Change('name', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Residencial Los Pinos"
           />
         </div>
@@ -378,7 +383,7 @@ export default function ConstructionWizard({
             type="number"
             value={step1Data.housing_count}
             onChange={(e) => handleStep1Change('housing_count', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 24"
             min="1"
           />
@@ -396,7 +401,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.street}
             onChange={(e) => handleStep1Change('street', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Calle Mayor"
           />
         </div>
@@ -409,7 +414,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.number}
             onChange={(e) => handleStep1Change('number', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 123"
           />
         </div>
@@ -422,7 +427,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.province}
             onChange={(e) => handleStep1Change('province', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Madrid"
           />
         </div>
@@ -435,7 +440,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.municipality}
             onChange={(e) => handleStep1Change('municipality', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: Madrid"
           />
         </div>
@@ -448,7 +453,7 @@ export default function ConstructionWizard({
             type="text"
             value={step1Data.postal_code}
             onChange={(e) => handleStep1Change('postal_code', e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+            className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             placeholder="Ej: 28001"
           />
         </div>
@@ -479,7 +484,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('society_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: Constructora ABC S.L."
             />
           </div>
@@ -492,7 +497,7 @@ export default function ConstructionWizard({
               type="text"
               value={step2Data.society_cif}
               onChange={(e) => handleStep2Change('society_cif', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: B12345678"
             />
           </div>
@@ -512,7 +517,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_street', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -526,7 +531,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_number', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -540,7 +545,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_block', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -554,7 +559,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_staircase', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -568,7 +573,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_floor', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -582,7 +587,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_letter', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -596,7 +601,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_province', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -610,7 +615,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_municipality', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -624,7 +629,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('fiscal_postal_code', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
         </div>
@@ -646,7 +651,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_first_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -660,7 +665,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_last_name', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
             />
           </div>
 
@@ -674,7 +679,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_dni', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: 12345678A"
             />
             <h4 className="font-semibold text-gray-900 mt-10">
@@ -694,7 +699,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_phone', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: 600123456"
             />
           </div>
@@ -709,7 +714,7 @@ export default function ConstructionWizard({
               onChange={(e) =>
                 handleStep2Change('responsible_email', e.target.value)
               }
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
+              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
               placeholder="Ej: responsable@empresa.com"
             />
           </div>

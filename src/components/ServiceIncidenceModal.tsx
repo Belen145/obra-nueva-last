@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ServiceIncidenceInfo } from './ServiceIncidenceInfo';
 import { supabase } from '../lib/supabase';
+import { useNotification } from '../contexts/NotificationContext';
 
 // ---------------------------------------------
 // ServiceIncidenceModal
@@ -31,11 +32,11 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
   // State Management
   // --------------------
 
+  const { showNotification } = useNotification();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textContent, setTextContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isObservacionesExpanded, setIsObservacionesExpanded] = useState(false);
   const [showLeerMas, setShowLeerMas] = useState(false);
 
@@ -174,19 +175,25 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
       console.log('✅ Servicio transicionado exitosamente al estado 19');
 
-      // 4. Mostrar éxito y cerrar
-      setSuccessMessage(
-        'Incidencia procesada exitosamente. El servicio ha sido actualizado.'
-      );
+      // 4. Mostrar notificación de éxito y cerrar
+      showNotification({
+        type: 'success',
+        title: 'Incidencia resuelta correctamente',
+        body: 'Nuestro equipo revisará los datos aportados y seguiremos adelante con el trámite o volveremos a levantar incidencia.'
+      });
 
-      // Esperar un momento para mostrar el mensaje
-      setTimeout(() => {
-        onSuccess();
-        handleClose();
-      }, 2000);
+      onSuccess();
+      handleClose();
     } catch (err) {
       console.error('❌ Error procesando incidencia:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      const errorMessage = err instanceof Error ? err.message : 'Inténtalo de nuevo en unos minutos o escríbenos a atencion.cliente@zenovapro.com si el problema continúa.';
+      setError(errorMessage);
+
+      showNotification({
+        type: 'error',
+        title: 'Error al resolver la incidencia',
+        body: errorMessage
+      });
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +204,6 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
       setSelectedFile(null);
       setTextContent('');
       setError(null);
-      setSuccessMessage(null);
       onClose();
     }
   };
@@ -377,25 +383,8 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
             </div>
           )}
 
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 rounded p-4 mb-6">
-              <div className="flex items-center">
-                <Check className="w-5 h-5 text-green-500 mr-3" />
-                <div>
-                  <h3 className="text-sm font-medium text-green-800">
-                    ¡Éxito!
-                  </h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    {successMessage}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Error Message */}
-          {error && (
+          {/* {error && (
             <div className="bg-red-50 border border-red-200 rounded p-4 mb-6">
               <div className="flex items-center">
                 <svg className="w-5 h-5 text-red-500 mr-3" viewBox="0 0 16 16" fill="none">
@@ -407,7 +396,7 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Tu respuesta Section */}
           <div className="flex flex-col gap-1 mb-10">

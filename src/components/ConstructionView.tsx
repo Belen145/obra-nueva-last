@@ -1034,7 +1034,7 @@ export default function ConstructionView() {
                 <div className="px-2 min-w-[193px] flex-1 text-sm font-medium text-zen-grey-950">Responsable</div>
                 <div className="px-2 min-w-[134px] flex-1 text-sm font-medium text-zen-grey-950">Viviendas</div>
                 <div className="px-2 min-w-[170px] flex-1 text-sm font-medium text-zen-grey-950">Fecha finalización</div>
-                <div className="px-2 min-w-[169px] flex-1 text-sm font-medium text-zen-grey-950">Estado</div>
+                <div className="px-2 min-w-[150px] flex-1 text-sm font-medium text-zen-grey-950">Estado</div>
                 <div className="px-2 max-w-[135px] flex-1 text-sm font-medium text-zen-grey-950">Detalle</div>
               </div>
 
@@ -1124,7 +1124,7 @@ export default function ConstructionView() {
                     </td>
 
                     {/* Estado */}
-                    <td className="px-2 min-w-[169px] flex-1 flex items-center">
+                    <td className="px-2 min-w-[150px] flex-1 flex items-center">
                       <span className="text-sm text-zen-grey-700">
                         {construction.construction_status?.name || 'Sin estado'}
                       </span>
@@ -1134,7 +1134,7 @@ export default function ConstructionView() {
                     <td className="px-2 max-w-[135px] flex-1 flex items-center">
                       <button
                         onClick={() => toggleConstructionExpansion(construction.id)}
-                        className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold"
+                        className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold width-[max-content]"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 11 13" fill="currentColor">
                           <use href="/icons.svg#plus" />
