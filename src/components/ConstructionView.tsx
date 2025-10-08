@@ -40,7 +40,6 @@ export default function ConstructionView() {
   // Opciones de estado para el filtro
   const statusOptions = [
     { label: 'Todos', value: '' },
-    { label: 'Activa', value: 'Activa' },
     { label: 'En progreso', value: 'En progreso' },
     { label: 'Finalizada', value: 'Finalizada' },
     { label: 'Cancelada', value: 'Cancelada' }
