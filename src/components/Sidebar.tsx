@@ -22,23 +22,74 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   useEffect(() => {
     const fetchCompanyName = async () => {
       try {
+        console.log('🔍 Iniciando fetchCompanyName...');
+        
         // Obtener información del usuario autenticado
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        console.log('👤 Usuario obtenido:', user);
+        console.log('👤 Metadatos del usuario:', user?.user_metadata);
+        console.log('👤 App metadata del usuario:', user?.app_metadata);
+        console.log('❌ Error de usuario:', userError);
         
         if (userError || !user) {
           console.error('Usuario no autenticado:', userError);
           return;
         }
 
-        // Para el usuario actual, usar company_id = 3
-        const userCompanyId = 3;
+        // Intentar obtener company_id de los metadatos del usuario
+        let userCompanyId = user.user_metadata?.company_id || user.app_metadata?.company_id;
         
-        // Obtener nombre de la compañía
+        // Si no está en metadatos, buscar en una posible tabla de perfiles
+        if (!userCompanyId) {
+          console.log('🔍 No hay company_id en metadatos, buscando en tabla profiles...');
+          
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (!profileError && profile) {
+            userCompanyId = profile.company_id;
+            console.log('👤 Company ID encontrado en profiles:', userCompanyId);
+          } else {
+            console.log('❌ No se encontró tabla profiles o perfil del usuario:', profileError);
+          }
+        }
+        
+        // Si aún no tenemos company_id, usar fallback temporal
+        if (!userCompanyId) {
+          console.log('⚠️ No se encontró company_id para el usuario, usando todas las compañías...');
+          // Obtener la primera compañía disponible como fallback
+          const { data: allCompanies, error: allCompaniesError } = await supabase
+            .from('company')
+            .select('id, name')
+            .limit(1);
+            
+          if (!allCompaniesError && allCompanies && allCompanies.length > 0) {
+            userCompanyId = allCompanies[0].id;
+            setCompanyName(allCompanies[0].name);
+            console.log('🔄 Usando primera compañía como fallback:', allCompanies[0]);
+            return;
+          } else {
+            console.error('❌ No se pudieron cargar las compañías:', allCompaniesError);
+            return;
+          }
+        }
+
+        console.log('🏢 Company ID del usuario:', userCompanyId);
+        console.log('🏢 Buscando compañía con ID:', userCompanyId);
+        
+        // Obtener nombre de la compañía específica del usuario
         const { data: company, error: companyError } = await supabase
           .from('company')
           .select('name')
           .eq('id', userCompanyId)
           .single();
+
+        console.log('🏢 Compañía obtenida:', company);
+        console.log('❌ Error de compañía:', companyError);
 
         if (companyError) {
           console.error('Error obteniendo compañía:', companyError);
@@ -46,6 +97,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         }
 
         if (company) {
+          console.log('✅ Estableciendo nombre de compañía:', company.name);
           setCompanyName(company.name);
         }
       } catch (error) {
@@ -62,6 +114,9 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: 'logout', label: 'Cerrar sesión', iconId: 'logout' },
     { id: 'real-estate', label: companyName, iconId: 'user' },
   ];
+  
+  // Debug: Log del estado actual
+  console.log('🏢 Nombre de compañía actual en Sidebar:', companyName);
   // --- Handlers ---
   /**
    * Handles menu item click: updates view and navigates.
