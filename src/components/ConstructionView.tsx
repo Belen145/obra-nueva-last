@@ -1102,7 +1102,7 @@ export default function ConstructionView() {
                           <use href="/icons.svg#buildings" />
                         </svg>
                         <span className="text-base text-zen-grey-700">
-                          {construction.num_viviendas || '0'}
+                          {construction.number_homes || '0'}
                         </span>
                       </div>
                     </td>
