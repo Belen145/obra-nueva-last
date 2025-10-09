@@ -42,19 +42,19 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
         
         // Si no está en metadatos, buscar en una posible tabla de perfiles
         if (!userCompanyId) {
-          console.log('🔍 No hay company_id en metadatos, buscando en tabla profiles...');
+          console.log('🔍 No hay company_id en metadatos, buscando en tabla users...');
           
           const { data: profile, error: profileError } = await supabase
-            .from('profiles')
+            .from('users')
             .select('company_id')
             .eq('id', user.id)
             .single();
             
           if (!profileError && profile) {
             userCompanyId = profile.company_id;
-            console.log('👤 Company ID encontrado en profiles:', userCompanyId);
+            console.log('👤 Company ID encontrado en users:', userCompanyId);
           } else {
-            console.log('❌ No se encontró tabla profiles o perfil del usuario:', profileError);
+            console.log('❌ No se encontró tabla users o perfil del usuario:', profileError);
           }
         }
         
