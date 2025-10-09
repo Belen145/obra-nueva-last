@@ -278,6 +278,13 @@ export default function ConstructionWizard({
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Obtener información del usuario autenticado
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('Usuario no autenticado');
+      }
+
       // Construir dirección completa
       const addressParts = [
         step1Data.street,
@@ -296,14 +303,16 @@ export default function ConstructionWizard({
       const defaultStatus =
         statuses.find((s) => s.name.toLowerCase().includes('planificado')) ||
         statuses[0];
-      const defaultCompany = companies[0];
+      
+      // Usar company_id = 3 para el usuario actual
+      const userCompanyId = 3;
 
       const { data: construction, error: constructionError } = await supabase
         .from('construction')
         .insert({
           name: step1Data.name,
           construction_status_id: defaultStatus?.id || 1,
-          company_id: defaultCompany?.id || 1,
+          company_id: userCompanyId,
           address: fullAddress,
           responsible: responsibleName,
         })
