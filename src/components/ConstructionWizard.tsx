@@ -294,10 +294,10 @@ export default function ConstructionWizard({
       
       // Si no está en metadatos, buscar en una posible tabla de perfiles
       if (!userCompanyId) {
-        console.log('🔍 No hay company_id en metadatos, buscando en tabla profiles...');
+        console.log('🔍 No hay company_id en metadatos, buscando en tabla users...');
         
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+          .from('users')
           .select('company_id')
           .eq('id', user.id)
           .single();
