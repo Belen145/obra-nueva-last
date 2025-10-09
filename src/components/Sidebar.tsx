@@ -1,5 +1,5 @@
 // React and dependencies
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 // ---------------------------------------------
@@ -16,11 +16,51 @@ interface SidebarProps {
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
   // --- Hooks ---
   const navigate = useNavigate();
+  const [companyName, setCompanyName] = useState<string>('Inmobiliaria');
+
+  // --- Effects ---
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        // Obtener información del usuario autenticado
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.error('Usuario no autenticado:', userError);
+          return;
+        }
+
+        // Para el usuario actual, usar company_id = 3
+        const userCompanyId = 3;
+        
+        // Obtener nombre de la compañía
+        const { data: company, error: companyError } = await supabase
+          .from('company')
+          .select('name')
+          .eq('id', userCompanyId)
+          .single();
+
+        if (companyError) {
+          console.error('Error obteniendo compañía:', companyError);
+          return;
+        }
+
+        if (company) {
+          setCompanyName(company.name);
+        }
+      } catch (error) {
+        console.error('Error en fetchCompanyName:', error);
+      }
+    };
+
+    fetchCompanyName();
+  }, []);
+
   // --- Menu items ---
   const menuItems = [{ id: 'constructions', label: 'Obras', iconId: 'obras' }];
   const footerItems = [
     { id: 'logout', label: 'Cerrar sesión', iconId: 'logout' },
-    { id: 'real-estate', label: 'Inmobiliaria', iconId: 'user' },
+    { id: 'real-estate', label: companyName, iconId: 'user' },
   ];
   // --- Handlers ---
   /**
