@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronRight,
 } from 'lucide-react';
@@ -285,6 +285,38 @@ export default function ConstructionWizard({
         throw new Error('Usuario no autenticado');
       }
 
+      console.log('👤 Usuario autenticado:', user);
+      console.log('👤 Metadatos del usuario:', user.user_metadata);
+      console.log('👤 App metadata del usuario:', user.app_metadata);
+
+      // Intentar obtener company_id de los metadatos del usuario
+      let userCompanyId = user.user_metadata?.company_id || user.app_metadata?.company_id;
+      
+      // Si no está en metadatos, buscar en una posible tabla de perfiles
+      if (!userCompanyId) {
+        console.log('🔍 No hay company_id en metadatos, buscando en tabla profiles...');
+        
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .single();
+          
+        if (!profileError && profile) {
+          userCompanyId = profile.company_id;
+          console.log('👤 Company ID encontrado en profiles:', userCompanyId);
+        } else {
+          console.log('❌ No se encontró tabla profiles o perfil del usuario:', profileError);
+        }
+      }
+      
+      // Si aún no tenemos company_id, lanzar error
+      if (!userCompanyId) {
+        throw new Error('No se pudo determinar la compañía del usuario');
+      }
+
+      console.log('🏢 Company ID del usuario para crear obra:', userCompanyId);
+      
       // Construir dirección completa
       const addressParts = [
         step1Data.street,
@@ -303,9 +335,6 @@ export default function ConstructionWizard({
       const defaultStatus =
         statuses.find((s) => s.name.toLowerCase().includes('planificado')) ||
         statuses[0];
-      
-      // Usar company_id = 3 para el usuario actual
-      const userCompanyId = 3;
 
       const { data: construction, error: constructionError } = await supabase
         .from('construction')
@@ -315,6 +344,7 @@ export default function ConstructionWizard({
           company_id: userCompanyId,
           address: fullAddress,
           responsible: responsibleName,
+          number_homes: parseInt(step1Data.housing_count) || null,
         })
         .select()
         .single();
