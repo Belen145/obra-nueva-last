@@ -332,7 +332,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
               <div className="flex flex-col gap-4 w-full max-w-[735px] bg-white border border-zen-grey-300 rounded-lg p-6">
                 <div className="flex flex-col gap-2">
                   <h4 className="font-figtree font-semibold text-base leading-[1.47] text-zen-grey-950">
-                    ¿Necesita servicio adicional?
+                    ¿Necesitas acometida PCI en tu obra?
                   </h4>
                   <p className="font-figtree font-normal text-sm leading-[1.25] text-zen-grey-700">
                     Seleccione una opción para continuar con el proceso.
