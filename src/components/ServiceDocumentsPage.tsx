@@ -335,7 +335,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     ¿Necesitas acometida PCI en tu obra?
                   </h4>
                   <p className="font-figtree font-normal text-sm leading-[1.25] text-zen-grey-700">
-                    Seleccione una opción para continuar con el proceso.
+                    Indica si tu obra requiere una acometida de agua exclusiva para el sistema contra incendios.
                   </p>
                 </div>
                 
