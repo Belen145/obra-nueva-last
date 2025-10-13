@@ -17,18 +17,68 @@ export default function ServiceDocumentsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [radioSelection, setRadioSelection] = useState<'si' | 'no' | null>(null);
   const [hasSelectedRadio, setHasSelectedRadio] = useState<boolean>(false);
+  const [isCreatingService, setIsCreatingService] = useState<boolean>(false);
+
+  // Función para verificar si ya existe un servicio con service_type.id = 5
+  const checkExistingRelatedService = async () => {
+    if (!service?.construction) return false;
+    
+    try {
+      // Obtener construction_id correctamente
+      let constructionId;
+      if (Array.isArray(service.construction)) {
+        constructionId = service.construction[0]?.id;
+      } else {
+        constructionId = (service.construction as any).id;
+      }
+      
+      if (!constructionId) return false;
+      
+      const { data: existingServices, error } = await supabase
+        .from('services')
+        .select('id, type_id')
+        .eq('construction_id', constructionId)
+        .eq('type_id', 5);
+        
+      if (error) throw error;
+      return existingServices && existingServices.length > 0;
+    } catch (error) {
+      console.error('Error verificando servicios existentes:', error);
+      return false;
+    }
+  };
 
   // Función para crear un nuevo servicio con service_type_id = 5
   const createNewService = async () => {
     try {
-      if (!service?.construction?.id) {
+      if (!service?.construction) {
         throw new Error('No se pudo obtener el ID de la construcción');
       }
+
+      // Obtener construction_id correctamente
+      let constructionId;
+      if (Array.isArray(service.construction)) {
+        constructionId = service.construction[0]?.id;
+      } else {
+        constructionId = (service.construction as any).id;
+      }
+      
+      if (!constructionId) {
+        throw new Error('No se pudo obtener el ID de la construcción');
+      }
+
+      // Verificar primero si ya existe un servicio con type_id = 5
+      const hasExistingService = await checkExistingRelatedService();
+      if (hasExistingService) {
+        throw new Error('Ya existe un servicio relacionado para esta obra');
+      }
+
+      setIsCreatingService(true);
 
       const { data: newService, error: createError } = await supabase
         .from('services')
         .insert({
-          construction_id: service.construction.id,
+          construction_id: constructionId,
           type_id: 5, // service_type.id = 5
           status_id: 1, // Estado inicial
           comment: `Servicio creado automáticamente desde ${service.service_type?.name}`
@@ -47,12 +97,14 @@ export default function ServiceDocumentsPage(): JSX.Element {
     } catch (error) {
       console.error('Error al crear nuevo servicio:', error);
       throw error;
+    } finally {
+      setIsCreatingService(false);
     }
   };
 
   // Manejar selección del radio button
   const handleRadioSelection = async (selection: 'si' | 'no') => {
-    if (hasSelectedRadio) return; // No permitir cambios una vez seleccionado
+    if (hasSelectedRadio || isCreatingService) return; // No permitir cambios una vez seleccionado o mientras se crea
     
     setRadioSelection(selection);
     setHasSelectedRadio(true);
@@ -60,12 +112,16 @@ export default function ServiceDocumentsPage(): JSX.Element {
     if (selection === 'si') {
       try {
         await createNewService();
+        // Si llegamos aquí, el servicio se creó exitosamente y la selección debe quedar bloqueada
       } catch (error) {
-        // En caso de error, permitir selección nuevamente
+        // Solo en caso de error real, permitir selección nuevamente
         setHasSelectedRadio(false);
         setRadioSelection(null);
+        console.error('Error al crear el servicio:', error);
+        // Aquí podrías mostrar una notificación de error al usuario
       }
     }
+    // Si selecciona "no", la selección queda bloqueada inmediatamente
   };
 
   async function fetchData() {
@@ -87,7 +143,35 @@ export default function ServiceDocumentsPage(): JSX.Element {
       console.log('Service data:', serviceData);
       console.log('Service type_id:', serviceData?.type_id);
 
-      // 2. Obtener documentos requeridos por categoría
+      // 2. Si es un servicio tipo 3, verificar si ya existe un servicio relacionado tipo 5
+      if (serviceData?.type_id === 3) {
+        // Obtener construction_id correctamente
+        let constructionId;
+        if (serviceData.construction) {
+          if (Array.isArray(serviceData.construction)) {
+            constructionId = serviceData.construction[0]?.id;
+          } else {
+            constructionId = (serviceData.construction as any).id;
+          }
+        }
+        
+        if (constructionId) {
+          // Verificar si ya existe un servicio tipo 5 para esta construcción
+          const { data: existingServices, error: existingError } = await supabase
+            .from('services')
+            .select('id, type_id')
+            .eq('construction_id', constructionId)
+            .eq('type_id', 5);
+            
+          if (!existingError && existingServices && existingServices.length > 0) {
+            // Si ya existe, marcar como seleccionado "sí" y bloquear
+            setRadioSelection('si');
+            setHasSelectedRadio(true);
+          }
+        }
+      }
+
+      // 3. Obtener documentos requeridos por categoría
       const { data: requiredDocs, error: reqError } = await supabase
         .from('service_required_document')
         .select('id, document_type_id, documentation_type(category)')
@@ -248,7 +332,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
               <div className="flex flex-col gap-4 w-full max-w-[735px] bg-white border border-zen-grey-300 rounded-lg p-6">
                 <div className="flex flex-col gap-2">
                   <h4 className="font-figtree font-semibold text-base leading-[1.47] text-zen-grey-950">
-                    ¿Necesita acometida PCI?
+                    ¿Necesita servicio adicional?
                   </h4>
                   <p className="font-figtree font-normal text-sm leading-[1.25] text-zen-grey-700">
                     Seleccione una opción para continuar con el proceso.
@@ -258,12 +342,12 @@ export default function ServiceDocumentsPage(): JSX.Element {
                 <div className="flex gap-4">
                   {/* Opción Sí */}
                   <label 
-                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 p-4 border rounded-lg transition-all ${
                       radioSelection === 'si' 
                         ? 'border-zen-blue-500 bg-zen-blue-15' 
-                        : hasSelectedRadio 
+                        : hasSelectedRadio || isCreatingService
                           ? 'border-zen-grey-300 bg-zen-grey-100 cursor-not-allowed opacity-50'
-                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300'
+                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300 cursor-pointer'
                     }`}
                   >
                     <input
@@ -272,7 +356,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                       value="si"
                       checked={radioSelection === 'si'}
                       onChange={() => handleRadioSelection('si')}
-                      disabled={hasSelectedRadio && radioSelection !== 'si'}
+                      disabled={hasSelectedRadio || isCreatingService}
                       className="w-4 h-4 text-zen-blue-500 focus:ring-zen-blue-500"
                     />
                     <span className={`font-figtree font-medium text-sm ${
@@ -280,16 +364,19 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     }`}>
                       Sí
                     </span>
+                    {isCreatingService && radioSelection === 'si' && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-zen-blue-500"></div>
+                    )}
                   </label>
 
                   {/* Opción No */}
                   <label 
-                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 p-4 border rounded-lg transition-all ${
                       radioSelection === 'no' 
                         ? 'border-zen-blue-500 bg-zen-blue-15' 
-                        : hasSelectedRadio 
+                        : hasSelectedRadio || isCreatingService
                           ? 'border-zen-grey-300 bg-zen-grey-100 cursor-not-allowed opacity-50'
-                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300'
+                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300 cursor-pointer'
                     }`}
                   >
                     <input
@@ -298,7 +385,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                       value="no"
                       checked={radioSelection === 'no'}
                       onChange={() => handleRadioSelection('no')}
-                      disabled={hasSelectedRadio && radioSelection !== 'no'}
+                      disabled={hasSelectedRadio || isCreatingService}
                       className="w-4 h-4 text-zen-blue-500 focus:ring-zen-blue-500"
                     />
                     <span className={`font-figtree font-medium text-sm ${
@@ -323,9 +410,19 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     />
                     <span className="font-figtree font-normal text-sm text-zen-grey-700">
                       {radioSelection === 'si' 
-                        ? 'Se ha creado un nuevo servicio asociado a esta obra.'
-                        : 'No se creará ningún servicio adicional.'
+                        ? 'Se ha creado un nuevo servicio asociado a esta obra. Esta selección no se puede cambiar.'
+                        : 'No se creará ningún servicio adicional. Esta selección no se puede cambiar.'
                       }
+                    </span>
+                  </div>
+                )}
+
+                {/* Mensaje durante la creación del servicio */}
+                {isCreatingService && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-zen-blue-50 border border-zen-blue-300">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-zen-blue-500"></div>
+                    <span className="font-figtree font-normal text-sm text-zen-grey-700">
+                      Creando servicio adicional...
                     </span>
                   </div>
                 )}
