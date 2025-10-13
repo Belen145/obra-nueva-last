@@ -410,8 +410,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     />
                     <span className="font-figtree font-normal text-sm text-zen-grey-700">
                       {radioSelection === 'si' 
-                        ? 'Se ha creado un nuevo servicio asociado a esta obra. Esta selección no se puede cambiar.'
-                        : 'No se creará ningún servicio adicional. Esta selección no se puede cambiar.'
+                        ? 'Servicio de Agua PCI creado'
                       }
                     </span>
                   </div>
