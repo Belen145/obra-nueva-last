@@ -15,6 +15,58 @@ export default function ServiceDocumentsPage(): JSX.Element {
   >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [radioSelection, setRadioSelection] = useState<'si' | 'no' | null>(null);
+  const [hasSelectedRadio, setHasSelectedRadio] = useState<boolean>(false);
+
+  // Función para crear un nuevo servicio con service_type_id = 5
+  const createNewService = async () => {
+    try {
+      if (!service?.construction?.id) {
+        throw new Error('No se pudo obtener el ID de la construcción');
+      }
+
+      const { data: newService, error: createError } = await supabase
+        .from('services')
+        .insert({
+          construction_id: service.construction.id,
+          type_id: 5, // service_type.id = 5
+          status_id: 1, // Estado inicial
+          comment: `Servicio creado automáticamente desde ${service.service_type?.name}`
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      console.log('Nuevo servicio creado:', newService);
+      
+      // Mostrar notificación de éxito si tienes un sistema de notificaciones
+      // showNotification({ type: 'success', title: 'Servicio creado exitosamente' });
+      
+      return newService;
+    } catch (error) {
+      console.error('Error al crear nuevo servicio:', error);
+      throw error;
+    }
+  };
+
+  // Manejar selección del radio button
+  const handleRadioSelection = async (selection: 'si' | 'no') => {
+    if (hasSelectedRadio) return; // No permitir cambios una vez seleccionado
+    
+    setRadioSelection(selection);
+    setHasSelectedRadio(true);
+    
+    if (selection === 'si') {
+      try {
+        await createNewService();
+      } catch (error) {
+        // En caso de error, permitir selección nuevamente
+        setHasSelectedRadio(false);
+        setRadioSelection(null);
+      }
+    }
+  };
 
   async function fetchData() {
     setLoading(true);
@@ -183,6 +235,95 @@ export default function ServiceDocumentsPage(): JSX.Element {
                 Sube la documentación necesaria para gestionar este suministro.
               </p>
             </div>
+
+            {/* Radio Button para service_type.id = 3 */}
+            {service?.service_type?.id === 3 && (
+              <div className="flex flex-col gap-4 w-full max-w-[735px] bg-white border border-zen-grey-300 rounded-lg p-6">
+                <div className="flex flex-col gap-2">
+                  <h4 className="font-figtree font-semibold text-base leading-[1.47] text-zen-grey-950">
+                    ¿Necesita servicio adicional?
+                  </h4>
+                  <p className="font-figtree font-normal text-sm leading-[1.25] text-zen-grey-700">
+                    Seleccione una opción para continuar con el proceso.
+                  </p>
+                </div>
+                
+                <div className="flex gap-4">
+                  {/* Opción Sí */}
+                  <label 
+                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                      radioSelection === 'si' 
+                        ? 'border-zen-blue-500 bg-zen-blue-15' 
+                        : hasSelectedRadio 
+                          ? 'border-zen-grey-300 bg-zen-grey-100 cursor-not-allowed opacity-50'
+                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="serviceOption"
+                      value="si"
+                      checked={radioSelection === 'si'}
+                      onChange={() => handleRadioSelection('si')}
+                      disabled={hasSelectedRadio && radioSelection !== 'si'}
+                      className="w-4 h-4 text-zen-blue-500 focus:ring-zen-blue-500"
+                    />
+                    <span className={`font-figtree font-medium text-sm ${
+                      radioSelection === 'si' ? 'text-zen-grey-950' : 'text-zen-grey-700'
+                    }`}>
+                      Sí
+                    </span>
+                  </label>
+
+                  {/* Opción No */}
+                  <label 
+                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                      radioSelection === 'no' 
+                        ? 'border-zen-blue-500 bg-zen-blue-15' 
+                        : hasSelectedRadio 
+                          ? 'border-zen-grey-300 bg-zen-grey-100 cursor-not-allowed opacity-50'
+                          : 'border-zen-grey-300 bg-white hover:border-zen-blue-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="serviceOption"
+                      value="no"
+                      checked={radioSelection === 'no'}
+                      onChange={() => handleRadioSelection('no')}
+                      disabled={hasSelectedRadio && radioSelection !== 'no'}
+                      className="w-4 h-4 text-zen-blue-500 focus:ring-zen-blue-500"
+                    />
+                    <span className={`font-figtree font-medium text-sm ${
+                      radioSelection === 'no' ? 'text-zen-grey-950' : 'text-zen-grey-700'
+                    }`}>
+                      No
+                    </span>
+                  </label>
+                </div>
+
+                {/* Mensaje de confirmación */}
+                {hasSelectedRadio && (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg ${
+                    radioSelection === 'si' 
+                      ? 'bg-zen-green-100 border border-zen-green-300' 
+                      : 'bg-zen-grey-100 border border-zen-grey-300'
+                  }`}>
+                    <img 
+                      src={radioSelection === 'si' ? "/check-circle-icon.svg" : "/info-icon.svg"} 
+                      alt="" 
+                      className="w-4 h-4" 
+                    />
+                    <span className="font-figtree font-normal text-sm text-zen-grey-700">
+                      {radioSelection === 'si' 
+                        ? 'Se ha creado un nuevo servicio asociado a esta obra.'
+                        : 'No se creará ningún servicio adicional.'
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Tarjetas de Categorías */}
             <div className="flex flex-col gap-4 w-full max-w-[735px]">
