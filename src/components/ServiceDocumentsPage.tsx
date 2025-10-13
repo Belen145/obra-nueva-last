@@ -76,12 +76,16 @@ export default function ServiceDocumentsPage(): JSX.Element {
       const { data: serviceData, error: serviceError } = await supabase
         .from('services')
         .select(
-          'id, status_id, type_id, service_type(name), construction(id, name)'
+          'id, status_id, type_id, service_type(id, name), construction(id, name)'
         )
         .eq('id', serviceId)
         .single();
       if (serviceError) throw serviceError;
       setService(serviceData);
+      
+      // Debug: Verificar el tipo de servicio
+      console.log('Service data:', serviceData);
+      console.log('Service type_id:', serviceData?.type_id);
 
       // 2. Obtener documentos requeridos por categoría
       const { data: requiredDocs, error: reqError } = await supabase
@@ -237,7 +241,10 @@ export default function ServiceDocumentsPage(): JSX.Element {
             </div>
 
             {/* Radio Button para service_type.id = 3 */}
-            {service?.service_type?.id === 3 && (
+            {(() => {
+              console.log('Checking radio button condition - service.type_id:', service?.type_id);
+              return service?.type_id === 3;
+            })() && (
               <div className="flex flex-col gap-4 w-full max-w-[735px] bg-white border border-zen-grey-300 rounded-lg p-6">
                 <div className="flex flex-col gap-2">
                   <h4 className="font-figtree font-semibold text-base leading-[1.47] text-zen-grey-950">
