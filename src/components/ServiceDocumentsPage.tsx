@@ -411,7 +411,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     <span className="font-figtree font-normal text-sm text-zen-grey-700">
                       {radioSelection === 'si' 
                         ? 'Servicio de Agua PCI añadido'
-                        : 'No se creará ningún servicio adicional. Esta selección no se puede cambiar.'
+                        : ''
                       }
                     </span>
                   </div>
