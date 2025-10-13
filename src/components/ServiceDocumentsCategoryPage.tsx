@@ -145,11 +145,10 @@ export default function ServiceDocumentsCategoryPage() {
       const initial: Record<number, string> = {};
       const initialIds: Record<number, number | null> = {};
       requiredDocuments.forEach((doc) => {
-        if (doc.documentation_type?.requires_file === false) {
+        if (doc.documentation_type?.requires_file === false || doc.documentation_type?.requires_file === null) {
           const existing = existingDocuments.find(
             (e) => e.document_type_id === doc.document_type_id
           );
-          initial[doc.document_type_id] = existing?.content_text || '';
           initial[doc.document_type_id] = existing?.content_text || '';
           initialIds[doc.document_type_id] = existing?.id ?? null;
         }
@@ -342,6 +341,22 @@ export default function ServiceDocumentsCategoryPage() {
       handleSubmit(documentTypeId, file);
     }
   };
+  const clearFileSelection = (documentTypeId: number) => {
+    setFileUploadStates((prev) => ({
+      ...prev,
+      [documentTypeId]: {
+        ...prev[documentTypeId],
+        selectedFile: null,
+        error: null,
+        successMessage: null,
+      },
+    }));
+  };
+
+  const handleUploadFile = (documentTypeId: number) => {
+    handleSubmit(documentTypeId);
+  };
+
   const handleSubmit = async (documentTypeId: number, fileArg?: File) => {
     const file = fileArg || fileUploadStates[documentTypeId]?.selectedFile;
     console.log('[handleSubmit] called for docType:', documentTypeId, file);
@@ -590,15 +605,18 @@ export default function ServiceDocumentsCategoryPage() {
               </p>
             ) : (
               <>
-            {/* Ordenar: primero los de texto, luego los de archivo */}
+            {/* Ordenar: primero los de texto, luego los de archivo, luego los mixtos (null) */}
             {(() => {
-              const textDocs = requiredDocuments.filter(
-                (doc) => doc.documentation_type?.requires_file !== true
+              const textOnlyDocs = requiredDocuments.filter(
+                (doc) => doc.documentation_type?.requires_file === false
               );
-              const fileDocs = requiredDocuments.filter(
+              const fileOnlyDocs = requiredDocuments.filter(
                 (doc) => doc.documentation_type?.requires_file === true
               );
-              const orderedDocs = [...textDocs, ...fileDocs];
+              const mixedDocs = requiredDocuments.filter(
+                (doc) => doc.documentation_type?.requires_file === null
+              );
+              const orderedDocs = [...textOnlyDocs, ...fileOnlyDocs, ...mixedDocs];
               return orderedDocs.map((requiredDoc) => {
                 const existingDoc = getExistingDocument(
                   requiredDoc.document_type_id
@@ -621,7 +639,7 @@ export default function ServiceDocumentsCategoryPage() {
                     className="flex flex-col gap-4 w-full"
                   >
                     {requiresFile === false ? (
-                      // Input de texto
+                      // Solo input de texto
                       <div className="flex flex-col gap-4 w-full">
                         <p className="font-figtree font-semibold text-base leading-[1.47] text-black">
                           {requiredDoc.documentation_type?.name ||
@@ -675,8 +693,8 @@ export default function ServiceDocumentsCategoryPage() {
                           </span>
                         </div>
                       </div>
-                      ) : (
-                        // Input de archivo
+                      ) : requiresFile === true ? (
+                        // Solo input de archivo
                         <div className="flex flex-col gap-4 w-full">
                           <p className="font-figtree font-semibold text-base leading-[1.47] text-black">
                             {requiredDoc.documentation_type?.name ||
@@ -753,13 +771,13 @@ export default function ServiceDocumentsCategoryPage() {
                                     )
                                   }
                                   disabled={
-                                    fileUploadStates[
+                                    !!(fileUploadStates[
                                       requiredDoc.document_type_id
                                     ]?.submitting ||
                                     (existingFileName &&
                                       !fileUploadStates[
                                         requiredDoc.document_type_id
-                                      ]?.selectedFile)
+                                      ]?.selectedFile))
                                   }
                                   className="hidden"
                                   id={`document-file-upload-${requiredDoc.document_type_id}`}
@@ -787,7 +805,7 @@ export default function ServiceDocumentsCategoryPage() {
                             )}
 
                             {/* Documento subido - mostrar debajo del input */}
-                            {existingFileName && (
+                            {existingFileName && existingDoc && (
                               <div className="bg-[#fcfcfc] border border-[#d0d3dd] rounded-lg flex items-center justify-between p-4 gap-4">
                                 {/* Nombre del archivo con check */}
                                 <div className="flex gap-1 items-start min-w-0 flex-1 overflow-hidden">
@@ -811,7 +829,7 @@ export default function ServiceDocumentsCategoryPage() {
                                     </svg>
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteDocument(existingDoc.id, existingDoc.link)}
+                                    onClick={() => handleDeleteDocument(existingDoc.id, existingDoc.link || undefined)}
                                     className="bg-[#f2f3f7] flex items-center justify-center  rounded-[1000px] w-10 h-10 hover:bg-zen-error-100 transition-colors"
                                     title="Eliminar documento"
                                   >
@@ -821,6 +839,204 @@ export default function ServiceDocumentsCategoryPage() {
                                   </button>
                                 </div>
                               </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        // Ambos tipos: requires_file === null
+                        <div className="flex flex-col gap-6 w-full">
+                          {/* Título del documento */}
+                          <p className="font-figtree font-semibold text-base leading-[1.47] text-black">
+                            {requiredDoc.documentation_type?.name ||
+                              `Documento ${requiredDoc.document_type_id}`}
+                            <span className="font-normal text-zen-blue-500">*</span>
+                          </p>
+                          
+                          {/* Sección de texto */}
+                          <div className="flex flex-col gap-4 w-full">
+                            <h4 className="font-figtree font-medium text-sm leading-[1.25] text-zen-grey-700">
+                              Información de texto
+                            </h4>
+                            <div className="flex flex-col gap-1 w-[348px]">
+                              <input
+                                type="text"
+                                className="bg-white border border-zen-grey-300 rounded px-4 py-3 text-base font-figtree text-zen-blue-950 focus:outline-none focus:border-zen-blue-500"
+                                placeholder="Ingrese la información del documento"
+                                value={
+                                  textValues[requiredDoc.document_type_id] ?? ''
+                                }
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setTextValues((prev) => ({
+                                    ...prev,
+                                    [requiredDoc.document_type_id]: value,
+                                  }));
+                                  setSavingTextId(requiredDoc.document_type_id);
+                                  setSavedTextId(null);
+                                  if (
+                                    debounceTimeouts.current[
+                                      requiredDoc.document_type_id
+                                    ]
+                                  ) {
+                                    clearTimeout(
+                                      debounceTimeouts.current[
+                                        requiredDoc.document_type_id
+                                      ]
+                                    );
+                                  }
+                                  debounceTimeouts.current[
+                                    requiredDoc.document_type_id
+                                  ] = setTimeout(async () => {
+                                    await saveTextDocument(
+                                      requiredDoc.document_type_id,
+                                      value,
+                                      textDocumentIds[requiredDoc.document_type_id]
+                                    );
+                                  }, 1000);
+                                }}
+                              />
+                              <span className="text-xs text-zen-grey-400 h-4 font-figtree">
+                                {savingTextId === requiredDoc.document_type_id
+                                  ? 'Guardando...'
+                                  : savedTextId === requiredDoc.document_type_id
+                                  ? 'Guardado'
+                                  : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Separador */}
+                          <div className="border-t border-zen-grey-200 w-full"></div>
+
+                          {/* Sección de archivo */}
+                          <div className="flex flex-col gap-4 w-full">
+                            <h4 className="font-figtree font-medium text-sm leading-[1.25] text-zen-grey-700">
+                              Archivo adjunto
+                            </h4>
+                            {/* Área de subida de archivos */}
+                            <div
+                              className={`border-2 border-dotted rounded-md p-4 text-center transition-all ${
+                                existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                  ? 'bg-zen-grey-100 border-zen-grey-300 cursor-not-allowed'
+                                  : fileUploadStates[requiredDoc.document_type_id]?.dragOver
+                                  ? 'border-zen-blue-500 bg-zen-blue-50 cursor-pointer'
+                                  : 'bg-white border-zen-blue-500 hover:bg-zen-blue-50 cursor-pointer'
+                              }`}
+                              onClick={() => {
+                                const isDisabled = existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile;
+                                if (!isDisabled) {
+                                  document.getElementById(`document-file-upload-${requiredDoc.document_type_id}`)?.click();
+                                }
+                              }}
+                              onDragOver={(e) =>
+                                handleDragOver(requiredDoc.document_type_id, e)
+                              }
+                              onDragLeave={() =>
+                                handleDragLeave(requiredDoc.document_type_id)
+                              }
+                              onDrop={(e) =>
+                                handleDrop(requiredDoc.document_type_id, e)
+                              }
+                            >
+                              <div className="flex flex-col gap-3 items-center">
+                                {/* Icono de upload */}
+                                <div className={`bg-zen-grey-100 rounded-full p-[9px] w-[44px] h-[44px] flex items-center justify-center ${
+                                  existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile ? 'opacity-50' : ''
+                                }`}>
+                                  <img
+                                    src={existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                      ? "/upload-simple-grey-icon.svg"
+                                      : "/upload-simple-icon.svg"}
+                                    alt=""
+                                    className="w-6 h-6"
+                                  />
+                                </div>
+
+                                {/* Texto */}
+                                <div className="flex flex-col gap-1 items-center text-center">
+                                  <p className={`font-figtree font-semibold text-sm leading-[1.25] ${
+                                    existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile
+                                      ? 'text-zen-grey-600'
+                                      : ''
+                                  }`}>
+                                    <span className={existingFileName && !fileUploadStates[requiredDoc.document_type_id]?.selectedFile ? '' : 'text-zen-blue-500'}>
+                                      Arrastra aquí tus archivos
+                                    </span>
+                                    {' '}
+                                    <span className="font-normal text-zen-grey-700">
+                                      o haz clic para subir
+                                    </span>
+                                  </p>
+                                  <p className="font-figtree font-normal text-xs leading-[1.35] text-zen-grey-500">
+                                    PDF, JPEG o PNG (max. 30 MB)
+                                  </p>
+                                </div>
+
+                                {/* Input file oculto */}
+                                <input
+                                  type="file"
+                                  id={`document-file-upload-${requiredDoc.document_type_id}`}
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    handleFileSelect(
+                                      requiredDoc.document_type_id,
+                                      e
+                                    )
+                                  }
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                />
+                              </div>
+
+                              {/* Archivo seleccionado o existente */}
+                              {(fileUploadStates[requiredDoc.document_type_id]?.selectedFile || existingFileName) && (
+                                <div className="mt-3 p-3 bg-zen-grey-100 rounded border border-zen-grey-200">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-zen-grey-600" />
+                                      <span className="text-sm font-medium text-zen-grey-700">
+                                        {fileUploadStates[requiredDoc.document_type_id]?.selectedFile?.name || existingFileName}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (fileUploadStates[requiredDoc.document_type_id]?.selectedFile) {
+                                          clearFileSelection(requiredDoc.document_type_id);
+                                        }
+                                      }}
+                                      className="text-zen-grey-500 hover:text-red-500 transition-colors"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Mensajes de estado del archivo */}
+                            {fileUploadStates[requiredDoc.document_type_id]?.error && (
+                              <p className="text-red-600 text-sm">
+                                {fileUploadStates[requiredDoc.document_type_id]?.error}
+                              </p>
+                            )}
+                            {fileUploadStates[requiredDoc.document_type_id]?.successMessage && (
+                              <p className="text-green-600 text-sm">
+                                {fileUploadStates[requiredDoc.document_type_id]?.successMessage}
+                              </p>
+                            )}
+
+                            {/* Botón de subida para archivos */}
+                            {fileUploadStates[requiredDoc.document_type_id]?.selectedFile && (
+                              <button
+                                onClick={() => handleUploadFile(requiredDoc.document_type_id)}
+                                disabled={fileUploadStates[requiredDoc.document_type_id]?.submitting}
+                                className="bg-zen-blue-500 text-white px-4 py-2 rounded hover:bg-zen-blue-600 disabled:opacity-50 transition-colors"
+                              >
+                                {fileUploadStates[requiredDoc.document_type_id]?.submitting 
+                                  ? 'Subiendo...' 
+                                  : 'Subir archivo'
+                                }
+                              </button>
                             )}
                           </div>
                         </div>
