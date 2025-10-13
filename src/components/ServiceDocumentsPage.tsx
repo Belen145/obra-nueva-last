@@ -410,7 +410,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
                     />
                     <span className="font-figtree font-normal text-sm text-zen-grey-700">
                       {radioSelection === 'si' 
-                        ? 'Servicio de Agua PCI añadido'
+                        ? 'Acometida de Agua PCI añadida a tu obra'
                         : ''
                       }
                     </span>
