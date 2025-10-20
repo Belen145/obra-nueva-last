@@ -11,6 +11,8 @@ import ServiceDocumentsCategoryPage from './components/ServiceDocumentsCategoryP
 import { NotificationProvider } from './contexts/NotificationContext';
 import { supabase } from './lib/supabase';
 import Login from './components/Login';
+import { CookieConsent } from './components/CookieConsent';
+import { AmplitudeProvider } from './providers/AmplitudeProvider';
 
 function App() {
   const location = useLocation();
@@ -32,11 +34,9 @@ function App() {
   // chequear sesión y escuchar cambios
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    console.log('Usuario actual:', user);
     
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        console.log("session", session);
         
         setUser(session?.user ?? null);
       }
@@ -56,26 +56,29 @@ function App() {
   }
 
   return (
-    <NotificationProvider>
-      <div className="flex h-screen bg-gray-50">
-        {shouldShowSidebar && <Sidebar activeView={activeView} onViewChange={setActiveView} />}
-        <main className="flex-1 overflow-auto bg-white">
-          <Routes>
-            <Route path="/" element={<ConstructionView />} />
-            <Route path="/constructions" element={<ConstructionView />} />
-            <Route
-              path="/servicios/:serviceId/documentos"
-              element={<ServiceDocumentsPage />}
-            />
-            <Route
-              path="/servicios/:serviceId/documentos/categoria/:category"
-              element={<ServiceDocumentsCategoryPage />}
-            />
-            <Route path="*" element={<ConstructionView />} />
-          </Routes>
-        </main>
-      </div>
-    </NotificationProvider>
+    <AmplitudeProvider>
+      <NotificationProvider>
+        <div className="flex h-screen bg-gray-50">
+          {shouldShowSidebar && <Sidebar activeView={activeView} onViewChange={setActiveView} />}
+          <main className="flex-1 overflow-auto bg-white">
+            <Routes>
+              <Route path="/" element={<ConstructionView />} />
+              <Route path="/constructions" element={<ConstructionView />} />
+              <Route
+                path="/servicios/:serviceId/documentos"
+                element={<ServiceDocumentsPage />}
+              />
+              <Route
+                path="/servicios/:serviceId/documentos/categoria/:category"
+                element={<ServiceDocumentsCategoryPage />}
+              />
+              <Route path="*" element={<ConstructionView />} />
+            </Routes>
+          </main>
+          <CookieConsent />
+        </div>
+      </NotificationProvider>
+    </AmplitudeProvider>
   );
 }
 

@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { useDocumentUpload } from '../hooks/useDocumentUpload';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../contexts/NotificationContext';
+import { trackEvent } from '../lib/amplitude';
 
 export default function ServiceDocumentsCategoryPage() {
   const { showNotification } = useNotification();
@@ -359,7 +360,6 @@ export default function ServiceDocumentsCategoryPage() {
 
   const handleSubmit = async (documentTypeId: number, fileArg?: File) => {
     const file = fileArg || fileUploadStates[documentTypeId]?.selectedFile;
-    console.log('[handleSubmit] called for docType:', documentTypeId, file);
     if (!file) {
       setFileUploadStates((prev) => ({
         ...prev,
@@ -388,7 +388,6 @@ export default function ServiceDocumentsCategoryPage() {
         .replace(/[^a-zA-Z0-9]/g, '_');
       const fileName = `document_${timestamp}_${cleanFileName}.${fileExtension}`;
       const filePath = `documents/${serviceId}/${fileName}`;
-      console.log('[handleSubmit] uploading file to storage:', filePath, file);
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file, { cacheControl: '3600', upsert: false });
@@ -398,7 +397,6 @@ export default function ServiceDocumentsCategoryPage() {
         .from('documents')
         .getPublicUrl(filePath);
       fileUrl = urlData.publicUrl;
-      console.log('[handleSubmit] file uploaded, url:', fileUrl);
       // Guardar en tabla documents
       const docPayload = {
         service_id: parseInt(serviceId!),
@@ -408,7 +406,6 @@ export default function ServiceDocumentsCategoryPage() {
         updated_at: new Date().toISOString(),
         document_status_id: 3,
       };
-      console.log('[handleSubmit] inserting into documents:', docPayload);
       const { error: docError } = await supabase
         .from('documents')
         .insert(docPayload);
@@ -435,6 +432,13 @@ export default function ServiceDocumentsCategoryPage() {
         },
       }));
       fetchServiceData();
+      trackEvent('Document Uploaded', {
+        page_title: 'Documentos de la categoría',
+        new_construction_id: service?.construction?.name || '',
+        service_type: service?.service_type?.name || '',
+        document_type: category,
+        document_name: fileName
+      })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
 
@@ -456,7 +460,6 @@ export default function ServiceDocumentsCategoryPage() {
   };
 
   const handleDownload = async (fileUrl: string, fileName: string) => {
-    console.log('[handleDownload] fileUrl:', fileUrl, 'fileName:', fileName);
     
     try {
       // Fetch el archivo
@@ -1049,7 +1052,17 @@ export default function ServiceDocumentsCategoryPage() {
             {/* Botón Footer - Volver a la documentación */}
             <div className="flex justify-end w-full mt-6">
               <button
-                onClick={() => navigate(`/servicios/${serviceId}/documentos`)}
+                onClick={() => {
+                    navigate(`/servicios/${serviceId}/documentos`)
+                    trackEvent('Back Button Pressed', {
+                      page_title: 'Documentos de la categoría',
+                      new_construction_id: service?.construction?.name || '',
+                      service_type: service?.service_type?.name || '',
+                      document_type: category,
+                      document_number: requiredDocuments.length
+                    })
+                  }
+                }
                 className="flex gap-[3px] items-center justify-center px-0 py-3 rounded transition-colors hover:opacity-80"
               >
                 <svg className="w-5 h-5 shrink-0 text-zen-blue-500 rotate-90 mt-[1px]" viewBox="0 0 16 16" fill="currentColor">

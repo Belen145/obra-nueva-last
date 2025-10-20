@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { trackEvent } from '../lib/amplitude';
 
 interface DatePickerDropdownProps {
   value: string | null; // formato YYYY-MM-DD
@@ -85,6 +86,20 @@ export function DatePickerDropdown({ value, onChange, constructionId }: DatePick
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
     const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    // Trackear evento según si es primera vez o edición
+    if (value === null) {
+      trackEvent('Finalization Date Saved', {
+        page_title: 'Tabla principal obras',
+        new_construction_id: constructionId
+      });
+    } else {
+      trackEvent('Finalization Date Edited', {
+        page_title: 'Tabla principal obras',
+        new_construction_id: constructionId
+      });
+    }
+
     onChange(formattedDate);
     setIsOpen(false);
   };

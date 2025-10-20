@@ -8,6 +8,7 @@ import {
 import { ServiceIncidenceInfo } from './ServiceIncidenceInfo';
 import { supabase } from '../lib/supabase';
 import { useNotification } from '../contexts/NotificationContext';
+import { trackEvent } from '../lib/amplitude';
 
 // ---------------------------------------------
 // ServiceIncidenceModal
@@ -81,13 +82,11 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
       setSubmitting(true);
       setError(null);
 
-      console.log('🔄 Procesando incidencia para servicio:', service.id);
 
       let fileUrl: string | null = null;
 
       // 1. Subir archivo si existe
       if (selectedFile) {
-        console.log('📁 Subiendo archivo:', selectedFile.name);
 
         const timestamp = Date.now();
         const fileExtension = selectedFile.name.split('.').pop();
@@ -115,11 +114,9 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
           .getPublicUrl(filePath);
 
         fileUrl = urlData.publicUrl;
-        console.log('✅ Archivo subido exitosamente:', fileUrl);
       }
 
       // 2. Guardar en incidence_documents
-      console.log('💾 Guardando documento de incidencia...');
 
       const { data: incidenceDoc, error: incidenceError } = await supabase
         .from('incidence_documents')
@@ -150,11 +147,8 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
         );
       }
 
-      console.log('✅ Documento de incidencia guardado:', incidenceDoc);
 
       // 3. Transicionar servicio al estado 19
-      console.log('🔄 Transicionando servicio al estado 19...');
-
       const { error: updateError } = await supabase
         .from('services')
         .update({
@@ -173,8 +167,6 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
         );
       }
 
-      console.log('✅ Servicio transicionado exitosamente al estado 19');
-
       // 4. Mostrar notificación de éxito y cerrar
       showNotification({
         type: 'success',
@@ -184,6 +176,13 @@ export const ServiceIncidenceModal: React.FC<ServiceIncidenceModalProps> = ({
 
       onSuccess();
       handleClose();
+      trackEvent('Incidence Solved', {
+        page_title: 'Modal de incidencia del servicio',
+        new_construction_id: service.construction_id,
+        service_type: service.id,
+        new_construction_state: service.services_status?.name || ''
+      });
+
     } catch (err) {
       console.error('❌ Error procesando incidencia:', err);
       const errorMessage = err instanceof Error ? err.message : 'Inténtalo de nuevo en unos minutos o escríbenos a atencion.cliente@zenovapro.com si el problema continúa.';

@@ -87,7 +87,6 @@ export function useServiceCreation() {
       if (!serviceInputs.length) {
         throw new Error("No se proporcionaron tipos de servicio");
       }
-      console.log("Creando servicios para la construccion:", constructionId);
       const createdServices: CreatedService[] = [];
       // Procesar cada tipo de servicio
       for (const input of serviceInputs) {
@@ -114,10 +113,7 @@ export function useServiceCreation() {
             )}`
           );
         }
-        console.log(
-          "Tipos de servicio seleccionados:",
-          selectedTypes.map((t) => `"${t.name}"`)
-        );
+
         // Crear los servicios para cada tipo seleccionado
         for (const serviceType of selectedTypes) {
           try {
@@ -127,10 +123,6 @@ export function useServiceCreation() {
               comment,
             });
             createdServices.push(createdService);
-            console.log(
-              `Servicio "${serviceType.name}" creado correctamente:`,
-              createdService
-            );
           } catch (serviceError) {
             console.error(
               `Error al crear el servicio ${serviceType.name}:`,
@@ -138,7 +130,6 @@ export function useServiceCreation() {
             );
             // En caso de error, intentar revertir los servicios ya creados
             if (createdServices.length > 0) {
-              console.log("Revirtiendo servicios creados...");
               await Promise.all(
                 createdServices.map((service) =>
                   supabase.from("services").delete().eq("id", service.id)
@@ -149,10 +140,6 @@ export function useServiceCreation() {
           }
         }
       }
-      console.log(
-        "Todos los servicios creados correctamente:",
-        createdServices
-      );
       return createdServices;
     } catch (err) {
       const errorMessage =

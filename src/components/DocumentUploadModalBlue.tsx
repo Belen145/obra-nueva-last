@@ -11,6 +11,7 @@ import {
 } from './ServiceProgressTracker';
 import { supabase } from '../lib/supabase';
 import { useNotification } from '../contexts/NotificationContext';
+import { trackEvent } from '../lib/amplitude';
 
 interface DocumentUploadModalBlueProps {
   isOpen: boolean;
@@ -102,6 +103,12 @@ export const DocumentUploadModalBlue: React.FC<
 
       onSuccess();
       handleClose();
+      trackEvent('Document Modal Solved', {
+        page_title: 'Modal de subida de documentación',
+        new_construction_id: service.construction_id,
+        service_type: service.id,
+      });
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Inténtalo de nuevo en unos minutos o escríbenos a atencion.cliente@zenovapro.com si el problema continúa.';
       setError(errorMessage);

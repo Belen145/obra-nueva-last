@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useServicesCache } from '../hooks/useServicesCache';
+import { trackEvent } from '../lib/amplitude';
 
 interface Service {
   id: number;
@@ -217,7 +218,16 @@ export default function ClientDocumentManagementWizard({
                   </span>
                 </button>
                 <button
-                  onClick={() => setShowConfirm(true)}
+                  onClick={() => {
+                      setShowConfirm(true)
+                      trackEvent('Service Card Delete Confirmed', {
+                        page_title: 'Tabla principal obras',
+                        service_type: service.service_type?.name || '',
+                        new_construction_id: service.construction_id,
+                        modal_tittle: 'Cancelar suministro',
+                      })
+                    }
+                  }
                   className="bg-zen-blue-500 flex gap-2 items-center justify-center px-4 py-3 rounded w-full hover:bg-zen-blue-600 transition-colors"
                   disabled={processing}
                 >

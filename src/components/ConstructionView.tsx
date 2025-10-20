@@ -30,6 +30,7 @@ import ConstructionWizard from './ConstructionWizard';
 import { DocumentUploadModalBlue } from './DocumentUploadModalBlue';
 import { DatePickerDropdown } from './DatePickerDropdown';
 import { supabase, Construction } from '../lib/supabase';
+import { trackEvent } from '../lib/amplitude';
 
 /**
  * Vista principal de obras de construcción y sus servicios.
@@ -77,6 +78,13 @@ export default function ConstructionView() {
     any[]
   >([]);
   const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+
+  // Track page view en Amplitude
+  useEffect(() => {
+    trackEvent('Page Viewed', {
+      page_title: 'Tabla principal obras'
+    })
+  }, []);
 
   // Cargar los estados del tipo de servicio para el modal
   useEffect(() => {
@@ -208,10 +216,6 @@ export default function ConstructionView() {
     } else {
       setExpandedConstruction(constructionId);
       // Cargar servicios cuando se expande
-      console.log(
-        '🔄 Expanding construction and loading services for:',
-        constructionId
-      );
       const services = await getServices(constructionId);
       console.log(
         '📋 Services loaded for construction',
@@ -220,6 +224,13 @@ export default function ConstructionView() {
         services
       );
     }
+
+    // Track page view en Amplitude
+      trackEvent('Open Details Button Pressed', {
+        page_title: 'Tabla principal obras',
+        new_construction_id: constructionId
+      })
+    
   };
 
   /**
@@ -387,14 +398,6 @@ export default function ConstructionView() {
     const [serviceTypeStatuses, setServiceTypeStatuses] = useState<any[]>([]);
     const [statusesLoading, setStatusesLoading] = useState<boolean>(false);
 
-    console.log('🔍 ServiceRow render for construction', constructionId, ':', {
-      expanded: expandedConstruction === constructionId,
-      servicesCount: constructionServices.length,
-      loading: servicesLoading,
-      error: servicesError,
-      cacheLoaded: cacheState.loaded,
-    });
-
     // Verificar si algún servicio está en estado de incidencia
 
     if (expandedConstruction !== constructionId) return null;
@@ -405,9 +408,6 @@ export default function ConstructionView() {
       !servicesLoading &&
       expandedConstruction === constructionId
     ) {
-      console.log(
-        '🔄 No cache loaded for expanded construction, forcing reload...'
-      );
       getServices(constructionId);
     }
 
@@ -531,6 +531,11 @@ export default function ConstructionView() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuServiceId(service.id);
+                            trackEvent('Service Card Detail Pressed', {
+                              page_title: 'Tabla principal obras',
+                              new_construction_id: constructionId,
+                              service_id: service.id
+                            })
                           }}
                         >
                           <MoreVertical className="w-5 h-5" />
@@ -551,6 +556,11 @@ export default function ConstructionView() {
                                   });
                                   setOpenMenuServiceId(null);
                                 }
+                                trackEvent('Service Card Delete Pressed', {
+                                  page_title: 'Tabla principal obras',
+                                  new_construction_id: constructionId,
+                                  service_id: service.id
+                                })
                               }}
                               disabled={service.status_id !== 1}
                             >
@@ -576,44 +586,6 @@ export default function ConstructionView() {
                     {!statusesLoading &&
                       serviceTypeStatuses.length > 0 &&
                       (() => {
-                        // Debug logs
-                        console.log('🔍 Service debug:', {
-                          serviceId: service.id,
-                          statusId: service.status_id,
-                          statusName: service.services_status?.name,
-                          isFinal: service.services_status?.is_final,
-                          fullStatus: service.services_status,
-                          isIncidence: service.services_status?.is_incidence,
-                        });
-
-                        // LOG COMPLETO DE DATOS DEL SERVICIO
-                        console.log('📊 === DATOS COMPLETOS DEL SERVICIO ===');
-                        console.log('🆔 Service ID:', service.id);
-                        console.log(
-                          '🏗️ Construction ID:',
-                          service.construction_id
-                        );
-                        console.log('🔧 Type ID:', service.type_id);
-                        console.log('📋 Status ID:', service.status_id);
-                        console.log('💬 Comment:', service.comment);
-                        console.log('🏷️ Service Type:', service.service_type);
-                        console.log(
-                          '📊 Services Status:',
-                          service.services_status
-                        );
-                        console.log('🔍 Status Details:', {
-                          id: service.services_status?.id,
-                          name: service.services_status?.name,
-                          is_final: service.services_status?.is_final,
-                          is_incidence: service.services_status?.is_incidence,
-                          requires_user_action:
-                            service.services_status?.requires_user_action,
-                        });
-                        console.log(
-                          '📦 Objeto completo del servicio:',
-                          JSON.stringify(service, null, 2)
-                        );
-                        console.log('📊 === FIN DATOS DEL SERVICIO ===');
                         // Check if current status is final
                         const isFinalStatus =
                           service.services_status?.is_final === true;
@@ -823,11 +795,18 @@ export default function ConstructionView() {
                         {service.services_status?.requires_user_action &&
                           !service.services_status?.is_final && (
                             <button
-                              onClick={() =>
-                                setShowDocumentUploadModal({
-                                  isOpen: true,
-                                  service: service,
-                                })
+                              onClick={() => {
+                                  setShowDocumentUploadModal({
+                                    isOpen: true,
+                                    service: service,
+                                  })
+                                  trackEvent('Document Upload Flow Opened', {
+                                    page_title: 'Tabla principal obras',
+                                    service_type: service.id,
+                                    new_construction_id: constructionId,
+                                    new_construction_state: service.services_status?.name || undefined
+                                  })
+                                }
                               }
                               className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
                             >
@@ -839,8 +818,15 @@ export default function ConstructionView() {
                           )}
                         {service.status_id === 1 && (
                             <button
-                              onClick={() =>
-                                navigate(`/servicios/${service.id}/documentos`)
+                                onClick={() => {
+                                  navigate(`/servicios/${service.id}/documentos`)
+                                  trackEvent('Document Upload Flow Opened', {
+                                    page_title: 'Tabla principal obras',
+                                    type: service.id,
+                                    new_construction_id: constructionId
+                                  })
+
+                                }
                               }
                               className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
                             >
@@ -854,11 +840,19 @@ export default function ConstructionView() {
                         {/* Resolve Incidence Button - Only for incidence states */}
                         {service.services_status?.is_incidence && (
                             <button
-                              onClick={() =>
-                                setShowIncidenceModal({
-                                  isOpen: true,
-                                  service: service,
-                                })
+                              onClick={() => {
+                                  setShowIncidenceModal({
+                                    isOpen: true,
+                                    service: service,
+                                  })
+
+                                  trackEvent('Solve Incidence Pressed', {
+                                    page_title: 'Tabla principal obras',
+                                    service_type: service.id,
+                                    new_construction_id: constructionId,
+                                    new_construction_state: service.services_status?.name || undefined
+                                  })
+                                }
                               }
                               className="w-['max-content'] px-4 py-2.5 flex items-center justify-center gap-2 bg-zen-error-deafult text-zen-error-900 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zen-error-300"
                             >
@@ -935,7 +929,10 @@ export default function ConstructionView() {
           </p>
         </div>
         <button
-          onClick={() => setShowWizard(true)}
+          onClick={() => {
+            setShowWizard(true)
+            trackEvent('New Construction Pressed', {page_title: 'Tabla principal obras'});
+          }}
            className="flex items-center gap-2 px-4 py-[10px] bg-zen-grey-25 text-zen-grey-950 rounded border border-zen-grey-950 hover:bg-zen-grey-100 transition-colors text-sm font-semibold leading-[1.25]"
         >
          <svg className="w-5 h-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -1133,7 +1130,7 @@ export default function ConstructionView() {
                     <td className="px-2 max-w-[135px] flex-1 flex items-center">
                       <button
                         onClick={() => toggleConstructionExpansion(construction.id)}
-                        className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold width-[max-content]"
+                        className="bg-zen-blue-50 text-zen-blue-500 px-3 py-2 rounded flex items-center gap-2 text-xs font-semibold min-w-[max-content]"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 11 13" fill="currentColor">
                           <use href="/icons.svg#plus" />
@@ -1197,16 +1194,10 @@ export default function ConstructionView() {
           service={clientManagementWizard.service}
           onClose={() => setClientManagementWizard(null)}
           onSuccess={(constructionId) => {
-            console.log(
-              '🎯 ClientDocumentManagementWizard onSuccess called with constructionId:',
-              constructionId
-            );
             setClientManagementWizard(null);
-            console.log('🧹 Clearing cache for construction:', constructionId);
             clearCache(constructionId);
-            console.log('🔄 Calling refetch to reload constructions...');
             refetch();
-            console.log('✅ Cache cleared and refetch called');
+           
           }}
         />
       )}
@@ -1227,7 +1218,6 @@ export default function ConstructionView() {
           isOpen={showIncidenceModal.isOpen}
           onClose={() => setShowIncidenceModal(null)}
           onSuccess={() => {
-            console.log('✅ Incidencia resuelta exitosamente');
             setShowIncidenceModal(null);
             // Limpiar caché y recargar datos
             clearCache();

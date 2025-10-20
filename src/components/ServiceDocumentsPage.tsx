@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { setServiceStatus } from '../lib/setServiceStatus';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/amplitude';
 
 export default function ServiceDocumentsPage(): JSX.Element {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -88,7 +89,6 @@ export default function ServiceDocumentsPage(): JSX.Element {
 
       if (createError) throw createError;
 
-      console.log('Nuevo servicio creado:', newService);
       
       // Mostrar notificación de éxito si tienes un sistema de notificaciones
       // showNotification({ type: 'success', title: 'Servicio creado exitosamente' });
@@ -139,10 +139,6 @@ export default function ServiceDocumentsPage(): JSX.Element {
       if (serviceError) throw serviceError;
       setService(serviceData);
       
-      // Debug: Verificar el tipo de servicio
-      console.log('Service data:', serviceData);
-      console.log('Service type_id:', serviceData?.type_id);
-
       // 2. Si es un servicio tipo 3, verificar si ya existe un servicio relacionado tipo 5
       if (serviceData?.type_id === 3) {
         // Obtener construction_id correctamente
@@ -276,7 +272,15 @@ export default function ServiceDocumentsPage(): JSX.Element {
         <div className="flex gap-6 items-center px-8 py-6">
           {/* Botón Volver */}
           <button
-            onClick={() => navigate('/constructions')}
+            onClick={() => {
+                navigate('/constructions')
+                trackEvent('Breadcrumb Pressed', {
+                  page_title: 'Documentos del servicio',
+                  new_construction_id: service.construction?.name || '',
+                  service_type: service.service_type?.name || '',
+                })
+              }
+            }
             className="bg-zen-grey-200 flex gap-2 items-center justify-center px-2 py-1 rounded-[1000px] hover:bg-zen-grey-300 transition-colors"
           >
             <svg className="w-4 h-4 shrink-0 text-zen-grey-500 rotate-90" viewBox="0 0 16 16" fill="currentColor">
@@ -326,7 +330,6 @@ export default function ServiceDocumentsPage(): JSX.Element {
 
             {/* Radio Button para service_type.id = 3 */}
             {(() => {
-              console.log('Checking radio button condition - service.type_id:', service?.type_id);
               return service?.type_id === 3;
             })() && (
               <div className="flex flex-col gap-4 w-full max-w-[735px] bg-white border border-zen-grey-300 rounded-lg p-6">
@@ -442,7 +445,16 @@ export default function ServiceDocumentsPage(): JSX.Element {
                           cat.name
                         )}`
                       );
+                      trackEvent('Document Upload Card Pressed', {
+                        page_title: 'Documentos del servicio',
+                        documentType: cat.name,
+                        service_type: service.service_type?.name || '',
+                        document_number: cat.count,
+                        new_construction_id: service.construction?.name || ''
+                      })
                     }
+                    
+
                   }}
                 >
                   {/* Contenido de la tarjeta */}

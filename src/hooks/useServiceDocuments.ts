@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 
 export interface RequiredDocument {
   id: number;
@@ -31,25 +31,13 @@ export function useServiceDocuments() {
       // Si ya están cargados, usar caché
       const cacheKey = `${serviceTypeId}_${filterOnlySelfManaged}`;
       if (cache[serviceTypeId]?.loaded && !filterOnlySelfManaged) {
-        console.log(
-          `✅ Documentos ya cargados para service_type_id ${serviceTypeId}, usando caché`
-        );
         return cache[serviceTypeId].data;
       }
 
       // Si ya está cargando, no hacer otra petición
       if (cache[serviceTypeId]?.loading && !filterOnlySelfManaged) {
-        console.log(
-          `⏳ Ya cargando documentos para service_type_id ${serviceTypeId}, esperando...`
-        );
         return cache[serviceTypeId]?.data || [];
       }
-
-      console.log(
-        `🔄 Cargando documentos requeridos para service_type_id ${serviceTypeId}${
-          filterOnlySelfManaged ? ' (solo self-managed)' : ''
-        }...`
-      );
 
       // Marcar como cargando solo si no es filtro específico
       if (!filterOnlySelfManaged) {
@@ -65,14 +53,8 @@ export function useServiceDocuments() {
       }
 
       try {
-        console.log(
-          `🔍 Ejecutando consulta Supabase para service_type_id: ${serviceTypeId}${
-            filterOnlySelfManaged ? ' AND only_self_managed = true' : ''
-          }`
-        );
-
         let query = supabase
-          .from('service_required_document')
+          .from("service_required_document")
           .select(
             `
           *,
@@ -84,16 +66,13 @@ export function useServiceDocuments() {
           )
         `
           )
-          .eq('service_type_id', serviceTypeId);
+          .eq("service_type_id", serviceTypeId);
 
         if (filterOnlySelfManaged) {
-          query = query.eq('only_self_managed', true);
+          query = query.eq("only_self_managed", true);
         }
 
-        const { data, error } = await query.order('id');
-
-        console.log(`📊 Respuesta de Supabase:`, { data, error });
-        console.log(`📈 Registros encontrados: ${data?.length || 0}`);
+        const { data, error } = await query.order("id");
 
         if (error) {
           console.error(`❌ Error en consulta Supabase:`, error);
@@ -101,7 +80,6 @@ export function useServiceDocuments() {
         }
 
         if (data && data.length > 0) {
-          console.log(`✅ Documentos cargados exitosamente:`, data);
           data.forEach((doc, index) => {
             console.log(`📄 Documento ${index + 1}:`, {
               id: doc.id,
@@ -136,7 +114,7 @@ export function useServiceDocuments() {
       } catch (error) {
         console.error(
           `❌ Error cargando documentos para service_type_id ${serviceTypeId}${
-            filterOnlySelfManaged ? ' (solo self-managed)' : ''
+            filterOnlySelfManaged ? " (solo self-managed)" : ""
           }:`,
           error
         );
@@ -149,7 +127,7 @@ export function useServiceDocuments() {
               loading: false,
               loaded: false,
               error:
-                error instanceof Error ? error.message : 'Error desconocido',
+                error instanceof Error ? error.message : "Error desconocido",
             },
           }));
         }

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useConstructionData } from '../hooks/useConstructionData';
 import { useServiceCreation } from '../hooks/useServiceCreation';
 import { useNotification } from '../contexts/NotificationContext';
+import { trackEvent } from '../lib/amplitude';
 
 interface ConstructionWizardProps {
   onClose: () => void;
@@ -111,22 +112,18 @@ export default function ConstructionWizard({
   // Cargar tipos de servicio al montar el componente
   useEffect(() => {
     const fetchServiceTypes = async () => {
-      console.log('Fetching service types...');
       try {
         const { data, error } = await supabase
           .from('service_type')
           .select('id, name')
           .order('name');
 
-        console.log('Service types response:', { data, error });
 
         if (error) throw error;
         setServiceTypes(data || []);
 
         // Initialize selectedServices state with the fetched services
-        console.log('Setting up initial services...');
         const initialServices = data?.reduce((acc, service) => {
-          console.log('Processing service:', service);
           acc[service.id] = {
             selected: false,
             name: service.name
@@ -134,7 +131,6 @@ export default function ConstructionWizard({
           return acc;
         }, {} as Step3Data['selectedServices']);
 
-        console.log('Initial services created:', initialServices);
 
         setStep3Data(prev => ({
           ...prev,
@@ -244,6 +240,8 @@ export default function ConstructionWizard({
       setCompletedSteps(prev => new Set(prev).add(currentStep));
       setCurrentStep(currentStep + 1);
     }
+
+    trackEvent('Next Form Button Pressed', {page_tittle: 'Modal Crear Nueva Obra', flow_creation_step: currentStep});
   };
 
   const handlePrevious = () => {
@@ -261,6 +259,8 @@ export default function ConstructionWizard({
     else if (completedSteps.has(step - 1) && canProceed()) {
       setCurrentStep(step);
     }
+
+    trackEvent('Back Form Button Pressed', {page_tittle: 'Modal Crear Nueva Obra', flow_creation_step: currentStep});
   };
 
   
@@ -285,16 +285,11 @@ export default function ConstructionWizard({
         throw new Error('Usuario no autenticado');
       }
 
-      console.log('👤 Usuario autenticado:', user);
-      console.log('👤 Metadatos del usuario:', user.user_metadata);
-      console.log('👤 App metadata del usuario:', user.app_metadata);
-
       // Intentar obtener company_id de los metadatos del usuario
       let userCompanyId = user.user_metadata?.company_id || user.app_metadata?.company_id;
       
       // Si no está en metadatos, buscar en una posible tabla de perfiles
       if (!userCompanyId) {
-        console.log('🔍 No hay company_id en metadatos, buscando en tabla users...');
         
         const { data: profile, error: profileError } = await supabase
           .from('users')
@@ -304,9 +299,6 @@ export default function ConstructionWizard({
           
         if (!profileError && profile) {
           userCompanyId = profile.company_id;
-          console.log('👤 Company ID encontrado en profiles:', userCompanyId);
-        } else {
-          console.log('❌ No se encontró tabla profiles o perfil del usuario:', profileError);
         }
       }
       
@@ -315,7 +307,6 @@ export default function ConstructionWizard({
         throw new Error('No se pudo determinar la compañía del usuario');
       }
 
-      console.log('🏢 Company ID del usuario para crear obra:', userCompanyId);
       
       // Construir dirección completa
       const addressParts = [
@@ -363,15 +354,16 @@ export default function ConstructionWizard({
         .filter(service => service.typeIds.length > 0);
 
       if (servicesToCreate.length > 0) {
-        console.log('🔄 Creando servicios para la obra:', servicesToCreate);
         const services = await createMultipleServices(
           construction.id,
           servicesToCreate
         );
-        console.log('✅ Servicios creados exitosamente:', services);
       }
 
       onSuccess(construction.id);
+
+      trackEvent('New Construction Created', {page_tittle: 'Modal Crear Nueva Obra', new_construction_id: construction.id, services: servicesToCreate});
+
       showNotification({
         type: 'success',
         title: 'Obra creada correctamente',
@@ -783,7 +775,10 @@ export default function ConstructionWizard({
           {Object.entries(step3Data.selectedServices).map(([serviceId, service]) => (
             <button
               key={serviceId}
-              onClick={() => handleServiceChange(serviceId, 'selected', !service.selected)}
+              onClick={() => {
+                handleServiceChange(serviceId, 'selected', !service.selected)
+                trackEvent('Service Pressed', {page_tittle: 'Modal Crear Nueva Obra', service_type: service.name, flow_creation_step: 3});
+              }}
               className={`w-[218.5px] flex flex-col gap-3 p-6 rounded-lg border transition-all ${
                 service.selected
                   ? 'bg-zen-blue-15 border-2 border-zen-blue-500'
@@ -1017,7 +1012,10 @@ export default function ConstructionWizard({
             </div>
             <div className="flex items-center gap-8">
               <button
-                onClick={() => setShowCancelModal(true)}
+                onClick={() => {
+                  setShowCancelModal(true)
+                  trackEvent('New Construction Cancelled', {page_tittle: 'Modal Crear Nueva Obra',  flow_creation_step: currentStep});
+                }}
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-zen-grey-950 rounded hover:bg-zen-grey-100 transition-colors"
               >
                 <span className="text-base font-semibold text-zen-grey-950" style={{ lineHeight: '1.47' }}>

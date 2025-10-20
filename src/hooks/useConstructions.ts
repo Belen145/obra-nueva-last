@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase, Construction } from '../lib/supabase';
+import { useState, useEffect } from "react";
+import { supabase, Construction } from "../lib/supabase";
 
 /**
  * Hook para gestionar el estado y operaciones de las obras de construcción.
@@ -13,7 +13,7 @@ export function useConstructions(): {
   addConstruction: (
     constructionData: Omit<
       Construction,
-      'id' | 'construction_status' | 'company'
+      "id" | "construction_status" | "company"
     >
   ) => Promise<{ success: boolean; data?: any; error?: string }>;
   updateConstruction: (
@@ -30,14 +30,11 @@ export function useConstructions(): {
 
   const fetchConstructions = async () => {
     try {
-      console.log(
-        '🔄 fetchConstructions called - loading constructions from database...'
-      );
       setLoading(true);
       setError(null);
 
       const { data, error } = await supabase
-        .from('construction')
+        .from("construction")
         .select(
           `
           *,
@@ -52,7 +49,7 @@ export function useConstructions(): {
           )
         `
         )
-        .order('id', { ascending: false });
+        .order("id", { ascending: false });
 
       if (error) {
         throw error;
@@ -60,8 +57,8 @@ export function useConstructions(): {
 
       setConstructions(data || []);
     } catch (err) {
-      console.error('Error fetching constructions:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      console.error("Error fetching constructions:", err);
+      setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
@@ -70,12 +67,12 @@ export function useConstructions(): {
   const addConstruction = async (
     constructionData: Omit<
       Construction,
-      'id' | 'construction_status' | 'company'
+      "id" | "construction_status" | "company"
     >
   ) => {
     try {
       const { data, error } = await supabase
-        .from('construction')
+        .from("construction")
         .insert([constructionData])
         .select(
           `
@@ -100,10 +97,10 @@ export function useConstructions(): {
       setConstructions((prev: Construction[]) => [data, ...prev]);
       return { success: true, data };
     } catch (err) {
-      console.error('Error adding construction:', err);
+      console.error("Error adding construction:", err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Error desconocido',
+        error: err instanceof Error ? err.message : "Error desconocido",
       };
     }
   };
@@ -114,9 +111,9 @@ export function useConstructions(): {
   ) => {
     try {
       const { data, error } = await supabase
-        .from('construction')
+        .from("construction")
         .update(updates)
-        .eq('id', id)
+        .eq("id", id)
         .select(
           `
           *,
@@ -144,10 +141,10 @@ export function useConstructions(): {
       );
       return { success: true, data };
     } catch (err) {
-      console.error('Error updating construction:', err);
+      console.error("Error updating construction:", err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Error desconocido',
+        error: err instanceof Error ? err.message : "Error desconocido",
       };
     }
   };
@@ -155,9 +152,9 @@ export function useConstructions(): {
   const deleteConstruction = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('construction')
+        .from("construction")
         .delete()
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) {
         throw error;
@@ -168,10 +165,10 @@ export function useConstructions(): {
       );
       return { success: true };
     } catch (err) {
-      console.error('Error deleting construction:', err);
+      console.error("Error deleting construction:", err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Error desconocido',
+        error: err instanceof Error ? err.message : "Error desconocido",
       };
     }
   };
