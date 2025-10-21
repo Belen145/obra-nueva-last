@@ -77,7 +77,7 @@ export default function ConstructionDocuments({ construction, onBack }: Construc
     try {
       setLoading(true);
 
-      // 1. Obtener servicios de la obra
+      // 1. Obtener servicios de la obra pruebaeeee
       const { data: servicesData, error: servicesError } = await supabase
         .from('services')
         .select(`

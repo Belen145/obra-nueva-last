@@ -33,7 +33,7 @@ import { supabase, Construction } from '../lib/supabase';
 import { trackEvent } from '../lib/amplitude';
 
 /**
- * Vista principal de obras de construcción y sus servicios.
+ * Vista principal de obras de construcción y sus serviciosssssss.
  * Permite filtrar, buscar, expandir y gestionar servicios asociados a cada obra.
  */
 export default function ConstructionView() {
