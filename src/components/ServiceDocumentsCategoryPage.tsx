@@ -843,6 +843,45 @@ export default function ServiceDocumentsCategoryPage() {
                                 </div>
                               </div>
                             )}
+
+                            {/* Documento de template disponible para descarga - mostrar debajo del input si no hay documento subido */}
+                            {!existingFileName && requiredDoc.documentation_type?.url_template && (
+                              <div className="bg-zen-blue-50 border border-zen-blue-200 rounded-lg flex items-center justify-between p-4 gap-4">
+                                {/* Nombre del template con icono */}
+                                <div className="flex gap-1 items-start min-w-0 flex-1 overflow-hidden">
+                                  <svg className="w-6 h-6 shrink-0 text-zen-blue-500">
+                                    <use href="/icons.svg#document-text" />
+                                  </svg>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="font-figtree font-medium text-base leading-[1.47] text-[#0f1422] truncate overflow-hidden text-ellipsis whitespace-nowrap">
+                                      {requiredDoc.documentation_type?.name} (Plantilla)
+                                    </p>
+                                    <p className="font-figtree font-normal text-sm text-zen-grey-600">
+                                     Plantilla de {requiredDoc.documentation_type?.name}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Botón de descarga */}
+                                <div className="flex gap-6 items-start shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      const templateUrl = requiredDoc.documentation_type?.url_template;
+                                      if (templateUrl) {
+                                        const fileName = `${requiredDoc.documentation_type?.name || 'Documento'}_Template.pdf`;
+                                        handleDownload(templateUrl, fileName);
+                                      }
+                                    }}
+                                    className="bg-zen-blue-500 text-white flex items-center justify-center rounded-[1000px] w-10 h-10 hover:bg-zen-blue-600 transition-colors"
+                                    title="Descargar plantilla"
+                                  >
+                                    <svg className="w-4 h-4 text-white">
+                                      <use href="/icons.svg#download" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : (
