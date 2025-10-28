@@ -37,7 +37,6 @@ interface Step2Data {
   fiscal_postal_code: string;
   responsible_first_name: string;
   responsible_last_name: string;
-  responsible_dni: string;
   responsible_phone: string;
   responsible_email: string;
 }
@@ -95,7 +94,6 @@ export default function ConstructionWizard({
     fiscal_postal_code: '',
     responsible_first_name: '',
     responsible_last_name: '',
-    responsible_dni: '',
     responsible_phone: '',
     responsible_email: '',
   });
@@ -220,8 +218,7 @@ export default function ConstructionWizard({
         step2Data.fiscal_municipality &&
         step2Data.fiscal_postal_code &&
         step2Data.responsible_first_name &&
-        step2Data.responsible_last_name &&
-        step2Data.responsible_dni
+        step2Data.responsible_last_name
     );
   };
 
@@ -701,18 +698,6 @@ export default function ConstructionWizard({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              DNI / NIE / CIF / Pasaporte <span className="text-zen-blue-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={step2Data.responsible_dni}
-              onChange={(e) =>
-                handleStep2Change('responsible_dni', e.target.value)
-              }
-              className="w-full p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-zen-blue-500 focus:border-transparent focus:outline-none"
-              placeholder="Ej: 12345678A"
-            />
             <h4 className="font-semibold text-gray-900 mt-10">
               Datos de contacto del responsable
             </h4>
