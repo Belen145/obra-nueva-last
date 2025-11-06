@@ -50,6 +50,7 @@ export default function ServiceDocumentsCategoryPage() {
       category: string | null;
       requires_file: boolean | null;
       url_template?: string | null;
+      distributor_id?: number | null;
     };
   };
   type ExistingDocument = {
@@ -174,24 +175,35 @@ export default function ServiceDocumentsCategoryPage() {
       // Obtener servicio
       const { data: serviceData, error: serviceError } = await supabase
         .from('services')
-        .select(`*, service_type (id, name), construction (id, name, address)`)
+        .select(`*, service_type (id, name), construction (id, name, address, distributor_id)`)
         .eq('id', serviceId)
         .single();
       if (serviceError) throw serviceError;
       setService(serviceData);
 
       // Obtener documentos requeridos filtrados por categoría
+      // Incluye documentos generales (sin distribuidor) y documentos específicos del distribuidor
       const { data: requiredDocsData, error: requiredDocsError } =
         await supabase
           .from('service_required_document')
           .select(
-            `*, documentation_type (id, name, category, requires_file, url_template)`
+            `*, documentation_type (id, name, category, requires_file, url_template, distributor_id)`
           )
           .eq('service_type_id', serviceData.type_id);
       if (requiredDocsError) throw requiredDocsError;
+      
       const filteredRequired = (requiredDocsData || []).filter(
-        (doc) =>
-          (doc.documentation_type?.category || 'Sin categoría') === category
+        (doc) => {
+          // Filtrar por categoría
+          const categoryMatch = (doc.documentation_type?.category || 'Sin categoría') === category;
+          
+          // Incluir documentos sin distribuidor (generales) o documentos del distribuidor específico de la obra
+          const isGeneralDocument = !doc.documentation_type?.distributor_id;
+          const isDistributorSpecificDocument = doc.documentation_type?.distributor_id === serviceData.construction?.distributor_id;
+          const distributorMatch = isGeneralDocument || isDistributorSpecificDocument;
+          
+          return categoryMatch && distributorMatch;
+        }
       );
       setRequiredDocuments(filteredRequired);
 

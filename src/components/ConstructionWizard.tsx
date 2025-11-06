@@ -333,6 +333,7 @@ export default function ConstructionWizard({
           address: fullAddress,
           responsible: responsibleName,
           number_homes: parseInt(step1Data.housing_count) || null,
+          distributor_id: 1, // Distribuidor por defecto
         })
         .select()
         .single();
