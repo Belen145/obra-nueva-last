@@ -880,7 +880,14 @@ export default function ServiceDocumentsCategoryPage() {
                                     onClick={() => {
                                       const templateUrl = requiredDoc.documentation_type?.url_template;
                                       if (templateUrl) {
-                                        const fileName = `${requiredDoc.documentation_type?.name || 'Documento'}_Template.pdf`;
+                                        // Extraer la extensión real del archivo desde la URL
+                                        const urlParts = templateUrl.split('/');
+                                        const fileNameWithExtension = urlParts[urlParts.length - 1];
+                                        const extension = fileNameWithExtension.includes('.') 
+                                          ? fileNameWithExtension.split('.').pop() 
+                                          : 'pdf';
+                                        
+                                        const fileName = `${requiredDoc.documentation_type?.name || 'Documento'}_Template.${extension}`;
                                         handleDownload(templateUrl, fileName);
                                       }
                                     }}
