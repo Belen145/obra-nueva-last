@@ -95,47 +95,108 @@ export default function ServiceDocumentsCategoryPage() {
     >
   >({});
 
-  // Función para autoguardado de texto
+  // Función para autoguardado de texto - ahora actualiza TODOS los servicios de la obra
   async function saveTextDocument(
     documentTypeId: number,
     value: string,
     documentId?: number | null
   ) {
-    if (!serviceId) return;
+    if (!serviceId || !service) return;
     setSavingTextId(documentTypeId);
-    let result;
-    if (documentId) {
-      // Update
-      const { error } = await supabase
-        .from('documents')
-        .update({
-          content_text: value,
-          updated_at: new Date().toISOString(),
-          document_status_id: 3,
-        })
-        .eq('id', documentId);
-      result = !error;
-    } else {
-      // Insert
-      const { error, data } = await supabase
-        .from('documents')
-        .insert({
-          service_id: parseInt(serviceId!),
+    let result = false;
+
+    try {
+      // Obtener todos los servicios de la misma obra
+      const { data: allServicesData, error: servicesError } = await supabase
+        .from('services')
+        .select('id')
+        .eq('construction_id', service.construction.id);
+      
+      if (servicesError) throw servicesError;
+      const allServiceIds = allServicesData?.map(s => s.id) || [];
+
+      if (documentId) {
+        // Update - actualizar el documento existente
+        const { error } = await supabase
+          .from('documents')
+          .update({
+            content_text: value,
+            updated_at: new Date().toISOString(),
+            document_status_id: 3,
+          })
+          .eq('id', documentId);
+        result = !error;
+
+        // También actualizar o crear en todos los demás servicios de la obra
+        for (const otherServiceId of allServiceIds) {
+          if (otherServiceId !== parseInt(serviceId!)) {
+            // Buscar si existe documento para este servicio
+            const { data: existingDocs } = await supabase
+              .from('documents')
+              .select('id')
+              .eq('service_id', otherServiceId)
+              .eq('document_type_id', documentTypeId)
+              .limit(1);
+
+            if (existingDocs && existingDocs.length > 0) {
+              // Actualizar documento existente
+              await supabase
+                .from('documents')
+                .update({
+                  content_text: value,
+                  updated_at: new Date().toISOString(),
+                  document_status_id: 3,
+                })
+                .eq('id', existingDocs[0].id);
+            } else {
+              // Crear nuevo documento
+              await supabase
+                .from('documents')
+                .insert({
+                  service_id: otherServiceId,
+                  document_type_id: documentTypeId,
+                  content_text: value,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  document_status_id: 3,
+                });
+            }
+          }
+        }
+      } else {
+        // Insert - crear documento en TODOS los servicios de la obra
+        const documentsToInsert = allServiceIds.map(serviceId => ({
+          service_id: serviceId,
           document_type_id: documentTypeId,
           content_text: value,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           document_status_id: 3,
-        })
-        .select();
-      result = !error;
-      if (data && data[0] && data[0].id) {
-        setTextDocumentIds((prev) => ({
-          ...prev,
-          [documentTypeId]: data[0].id,
         }));
+
+        const { error, data } = await supabase
+          .from('documents')
+          .insert(documentsToInsert)
+          .select();
+        
+        result = !error;
+        
+        // Actualizar el ID del documento actual
+        if (data && data.length > 0) {
+          const currentServiceDoc = data.find(doc => doc.service_id === parseInt(serviceId!));
+          if (currentServiceDoc) {
+            setTextDocumentIds((prev) => ({
+              ...prev,
+              [documentTypeId]: currentServiceDoc.id,
+            }));
+          }
+        }
       }
+    } catch (error) {
+      console.error('Error saving text document:', error);
+      result = false;
     }
+
     setSavingTextId(null);
     setSavedTextId(documentTypeId);
     fetchServiceData();
@@ -143,11 +204,13 @@ export default function ServiceDocumentsCategoryPage() {
   }
   // Sincronizar los valores del textarea con los documentos existentes cada vez que cambian
   useEffect(() => {
-    if (requiredDocuments.length > 0) {
+    if (requiredDocuments.length > 0 && serviceId) {
       const initial: Record<number, string> = {};
       const initialIds: Record<number, number | null> = {};
       requiredDocuments.forEach((doc) => {
         if (doc.documentation_type?.requires_file === false || doc.documentation_type?.requires_file === null) {
+          // Buscar el documento por tipo sin filtrar por service_id
+          // ya que los documentos se comparten entre servicios de la misma obra
           const existing = existingDocuments.find(
             (e) => e.document_type_id === doc.document_type_id
           );
@@ -158,7 +221,7 @@ export default function ServiceDocumentsCategoryPage() {
       setTextValues(initial);
       setTextDocumentIds(initialIds);
     }
-  }, [existingDocuments, requiredDocuments]);
+  }, [existingDocuments, requiredDocuments, serviceId]);
 
   // Mantener fetchServiceData solo para la primera carga
   useEffect(() => {
@@ -207,14 +270,23 @@ export default function ServiceDocumentsCategoryPage() {
       );
       setRequiredDocuments(filteredRequired);
 
-      // Obtener documentos existentes
+      // Obtener documentos existentes de TODOS los servicios de la misma obra
+      // para que los documentos se compartan entre servicios
+      const { data: allServicesData, error: allServicesError } = await supabase
+        .from('services')
+        .select('id')
+        .eq('construction_id', serviceData.construction.id);
+      if (allServicesError) throw allServicesError;
+      
+      const allServiceIds = allServicesData?.map(s => s.id) || [];
+      
       const { data: existingDocsData, error: existingDocsError } =
         await supabase
           .from('documents')
           .select(
             `*, document_status (id, name, is_incidence), documentation_type (id, name, category, requires_file)`
           )
-          .eq('service_id', serviceId);
+          .in('service_id', allServiceIds);
       if (existingDocsError) throw existingDocsError;
       setExistingDocuments(existingDocsData || []);
     } catch (err) {
@@ -225,6 +297,8 @@ export default function ServiceDocumentsCategoryPage() {
   };
 
   const getExistingDocument = (documentTypeId: number) => {
+    // Buscar el documento por tipo, sin filtrar por service_id 
+    // ya que ahora los documentos se comparten entre servicios de la misma obra
     return existingDocuments.find(
       (doc) => doc.document_type_id === documentTypeId
     );
@@ -399,7 +473,8 @@ export default function ServiceDocumentsCategoryPage() {
         .replace(/\.[^/.]+$/, '')
         .replace(/[^a-zA-Z0-9]/g, '_');
       const fileName = `document_${timestamp}_${cleanFileName}.${fileExtension}`;
-      const filePath = `documents/${serviceId}/${fileName}`;
+      // Usar la carpeta de la obra en lugar de la del servicio específico
+      const filePath = `documents/construction_${service.construction.id}/${fileName}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file, { cacheControl: '3600', upsert: false });
@@ -409,18 +484,30 @@ export default function ServiceDocumentsCategoryPage() {
         .from('documents')
         .getPublicUrl(filePath);
       fileUrl = urlData.publicUrl;
-      // Guardar en tabla documents
-      const docPayload = {
-        service_id: parseInt(serviceId!),
+      
+      // Obtener todos los servicios de la misma obra
+      const { data: allServicesData, error: servicesError } = await supabase
+        .from('services')
+        .select('id')
+        .eq('construction_id', service.construction.id);
+      
+      if (servicesError) throw servicesError;
+      const allServiceIds = allServicesData?.map(s => s.id) || [];
+
+      // Guardar en tabla documents para TODOS los servicios de la obra
+      const documentsToInsert = allServiceIds.map(serviceId => ({
+        service_id: serviceId,
         document_type_id: documentTypeId,
         link: fileUrl,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         document_status_id: 3,
-      };
+      }));
+
       const { error: docError } = await supabase
         .from('documents')
-        .insert(docPayload);
+        .insert(documentsToInsert);
+      
       if (docError) {
         console.error('Error al guardar documento:', docError);
         throw new Error(
@@ -497,10 +584,34 @@ export default function ServiceDocumentsCategoryPage() {
   };
 
   const handleDeleteDocument = async (documentId: number, fileUrl?: string) => {
-    if (!documentId) return;
+    if (!documentId || !service) return;
     try {
-      // Eliminar de la base de datos
-      await supabase.from('documents').delete().eq('id', documentId);
+      // Primero obtener el document_type_id del documento que se va a eliminar
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('document_type_id')
+        .eq('id', documentId)
+        .single();
+      
+      if (docError) throw docError;
+      const documentTypeId = docData.document_type_id;
+      
+      // Obtener todos los servicios de la misma obra
+      const { data: allServicesData, error: servicesError } = await supabase
+        .from('services')
+        .select('id')
+        .eq('construction_id', service.construction.id);
+      
+      if (servicesError) throw servicesError;
+      const allServiceIds = allServicesData?.map(s => s.id) || [];
+
+      // Eliminar TODOS los documentos del mismo tipo en todos los servicios de la obra
+      await supabase
+        .from('documents')
+        .delete()
+        .in('service_id', allServiceIds)
+        .eq('document_type_id', documentTypeId);
+      
       // Eliminar del storage si hay link
       if (fileUrl) {
         try {
