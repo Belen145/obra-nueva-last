@@ -132,7 +132,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
       const { data: serviceData, error: serviceError } = await supabase
         .from('services')
         .select(
-          'id, status_id, type_id, service_type(id, name), construction(id, name)'
+          'id, status_id, type_id, service_type(id, name), construction(id, name, distributor_id)'
         )
         .eq('id', serviceId)
         .single();
@@ -167,12 +167,21 @@ export default function ServiceDocumentsPage(): JSX.Element {
         }
       }
 
-      // 3. Obtener documentos requeridos por categoría
-      const { data: requiredDocs, error: reqError } = await supabase
+      // 3. Obtener documentos requeridos por categoría con filtro de distribuidora
+      const { data: allRequiredDocs, error: reqError } = await supabase
         .from('service_required_document')
-        .select('id, document_type_id, documentation_type(category)')
+        .select('id, document_type_id, documentation_type(id, category, distributor_id)')
         .eq('service_type_id', serviceData.type_id);
       if (reqError) throw reqError;
+
+      // Filtrar documentos requeridos aplicando la lógica de distribuidora
+      // igual que en ServiceDocumentsCategoryPage
+      const requiredDocs = (allRequiredDocs || []).filter((doc: any) => {
+        // Incluir documentos sin distribuidor (generales) o documentos específicos del distribuidor de la obra
+        const isGeneralDocument = !doc.documentation_type?.distributor_id;
+        const isDistributorSpecificDocument = doc.documentation_type?.distributor_id === serviceData.construction?.distributor_id;
+        return isGeneralDocument || isDistributorSpecificDocument;
+      });
 
       // 3. Obtener TODOS los documentos existentes para la obra (por todos los servicios de la obra)
       let constructionId = undefined;
