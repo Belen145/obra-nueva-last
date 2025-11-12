@@ -7,6 +7,7 @@ import { useConstructionData } from '../hooks/useConstructionData';
 import { useServiceCreation } from '../hooks/useServiceCreation';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
+import { hubSpotService } from '../services/hubspotService';
 
 interface ConstructionWizardProps {
   onClose: () => void;
@@ -104,38 +105,55 @@ export default function ConstructionWizard({
   });
 
   // Estados para los tipos de servicio
-  const [serviceTypes, setServiceTypes] = useState<Array<{id: number, name: string}>>([]);
+  const [serviceTypes, setServiceTypes] = useState<Array<{id: number, name: string, servicio: string, acometida: string}>>([]);
   const [loadingServiceTypes, setLoadingServiceTypes] = useState(true);
 
   // Cargar tipos de servicio al montar el componente
   useEffect(() => {
     const fetchServiceTypes = async () => {
       try {
+        console.log('🔍 Cargando tipos de servicio...');
+        
+        // Obtener name (para mostrar), Servicio y Acometida (para HubSpot)
         const { data, error } = await supabase
           .from('service_type')
-          .select('id, name')
+          .select('id, name, Servicio, Acometida')
           .order('name');
 
+        console.log('📥 Resultado consulta:', { data, error });
 
         if (error) throw error;
-        setServiceTypes(data || []);
+        
+        // Normalizar los datos: usar 'name' para mostrar, mantener Servicio y Acometida para HubSpot
+        const normalizedData = data?.map(item => ({
+          id: item.id,
+          name: item.name || 'Servicio sin nombre', // Para mostrar en cards
+          servicio: item.Servicio || '', // Para servicios_obra en HubSpot
+          acometida: item.Acometida || '' // Para acometida en HubSpot
+        })) || [];
+
+        console.log('✅ Datos normalizados:', normalizedData);
+        setServiceTypes(normalizedData);
 
         // Initialize selectedServices state with the fetched services
-        const initialServices = data?.reduce((acc, service) => {
+        const initialServices = normalizedData.reduce((acc, service) => {
           acc[service.id] = {
             selected: false,
-            name: service.name
+            name: service.name // Usar name para mostrar
           };
           return acc;
         }, {} as Step3Data['selectedServices']);
 
+        console.log('📝 InitialServices generados:', initialServices);
 
         setStep3Data(prev => ({
           ...prev,
-          selectedServices: initialServices || {}
+          selectedServices: initialServices
         }));
+        
+        console.log('✅ Carga completada exitosamente');
       } catch (err) {
-        console.error('Error al cargar tipos de servicio:', err);
+        console.error('❌ Error al cargar tipos de servicio:', err);
       } finally {
         setLoadingServiceTypes(false);
       }
@@ -315,6 +333,20 @@ export default function ConstructionWizard({
       ].filter(Boolean);
       const fullAddress = addressParts.join(', ');
 
+      // Construir dirección fiscal
+      const fiscalAddressParts = [
+        step2Data.fiscal_street,
+        step2Data.fiscal_number,
+        step2Data.fiscal_block ? `Bloque ${step2Data.fiscal_block}` : '',
+        step2Data.fiscal_staircase ? `Escalera ${step2Data.fiscal_staircase}` : '',
+        step2Data.fiscal_floor ? `Piso ${step2Data.fiscal_floor}` : '',
+        step2Data.fiscal_letter ? `Puerta ${step2Data.fiscal_letter}` : '',
+        step2Data.fiscal_municipality,
+        step2Data.fiscal_province,
+        step2Data.fiscal_postal_code,
+      ].filter(Boolean);
+      const fullFiscalAddress = fiscalAddressParts.join(', ');
+
       // Construir nombre completo del responsable
       const responsibleName =
         `${step2Data.responsible_first_name} ${step2Data.responsible_last_name}`.trim();
@@ -339,6 +371,63 @@ export default function ConstructionWizard({
         .single();
 
       if (constructionError) throw constructionError;
+
+      // Calcular valor de acometida basado en servicios seleccionados
+      const selectedServiceIds = Object.entries(step3Data.selectedServices)
+        .filter(([_, service]) => service.selected)
+        .map(([serviceId]) => Number(serviceId));
+
+      const selectedServiceData = serviceTypes.filter(st => 
+        selectedServiceIds.includes(st.id)
+      );
+
+      const acometidaTypes = [...new Set(selectedServiceData.map(s => s.acometida))];
+      
+      let acometidaValue = '';
+      if (acometidaTypes.length === 1) {
+        // Solo un tipo de acometida
+        acometidaValue = acometidaTypes[0] === 'Obra' ? 'Obra' : 'Definitivo';
+      } else if (acometidaTypes.length === 2) {
+        // Ambos tipos
+        acometidaValue = 'Obra + Definitivo';
+      }
+
+      // Calcular servicios_obra: valores únicos de la columna Servicio
+      const serviciosObra = [...new Set(selectedServiceData.map(s => s.servicio))].filter(Boolean);
+      
+      console.log('📋 Servicios para HubSpot:', { acometidaValue, serviciosObra });
+
+      // **INTEGRACIÓN HUBSPOT: Crear Deal**
+      try {
+        await hubSpotService.createDealFromConstruction({
+          name: step1Data.name,
+          address: fullAddress,
+          postal_code: step1Data.postal_code,
+          municipality: step1Data.municipality,
+          responsible_name: step2Data.responsible_first_name,
+          responsible_lastname: step2Data.responsible_last_name,
+          responsible_phone: step2Data.responsible_phone,
+          responsible_email: step2Data.responsible_email,
+          company_name: step2Data.society_name,
+          company_cif: step2Data.society_cif,
+          fiscal_address: fullFiscalAddress,
+          housing_count: parseInt(step1Data.housing_count) || 0,
+          acometida: acometidaValue,
+          servicios_obra: serviciosObra,
+        });
+
+        console.log('✅ Deal creado en HubSpot exitosamente con todos los campos');
+      } catch (hubspotError) {
+        // No fallar la creación local si HubSpot falla
+        console.error('❌ Error al sincronizar con HubSpot:', hubspotError);
+        
+        // Mostrar notificación de advertencia
+        showNotification({
+          type: 'error',
+          title: 'Advertencia',
+          body: 'La obra se creó correctamente, pero hubo un problema al sincronizar con HubSpot.'
+        });
+      }
 
       // 2. Crear servicios seleccionados usando el hook
       const servicesToCreate = Object.entries(step3Data.selectedServices)
