@@ -64,6 +64,7 @@ function App() {
             <Routes>
               <Route path="/" element={<ConstructionView />} />
               <Route path="/constructions" element={<ConstructionView />} />
+              <Route path="/login" element={<Login />} />
               <Route
                 path="/servicios/:serviceId/documentos"
                 element={<ServiceDocumentsPage />}
