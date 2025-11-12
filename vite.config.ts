@@ -13,8 +13,13 @@ export default defineConfig({
         target: 'https://api.hubapi.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/hubspot/, ''),
-        headers: {
-          'Access-Control-Allow-Origin': '*',
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // Permitir que las headers de Authorization pasen
+            if (req.headers.authorization) {
+              proxyReq.setHeader('authorization', req.headers.authorization);
+            }
+          });
         },
       },
     },
