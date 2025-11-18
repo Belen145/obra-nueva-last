@@ -175,13 +175,21 @@ export default function ServiceDocumentsPage(): JSX.Element {
       if (reqError) throw reqError;
 
       // Filtrar documentos requeridos aplicando la lógica de distribuidora
-      // igual que en ServiceDocumentsCategoryPage
       const requiredDocs = (allRequiredDocs || []).filter((doc: any) => {
+        const docType = Array.isArray(doc.documentation_type) ? doc.documentation_type[0] : doc.documentation_type;
         // Incluir documentos sin distribuidor (generales) o documentos específicos del distribuidor de la obra
-        const isGeneralDocument = !doc.documentation_type?.distributor_id;
-        const isDistributorSpecificDocument = doc.documentation_type?.distributor_id === serviceData.construction?.distributor_id;
+        const isGeneralDocument = !docType?.distributor_id;
+        let constructionData: any;
+        if (Array.isArray(serviceData.construction)) {
+          constructionData = serviceData.construction[0];
+        } else {
+          constructionData = serviceData.construction;
+        }
+        const isDistributorSpecificDocument = docType?.distributor_id === constructionData?.distributor_id;
         return isGeneralDocument || isDistributorSpecificDocument;
       });
+      
+      console.log('📄 Documentos requeridos filtrados:', requiredDocs.length, 'documentos');
 
       // 3. Obtener TODOS los documentos existentes para la obra (por todos los servicios de la obra)
       let constructionId = undefined;
@@ -210,6 +218,8 @@ export default function ServiceDocumentsPage(): JSX.Element {
           .in('service_id', serviceIds.length ? serviceIds : [-1]);
         if (allDocsError) throw allDocsError;
         allDocs = docsData || [];
+        console.log('📋 Documentos obtenidos para la obra:', allDocs);
+        console.log('🔍 Documentos con status 3 (aportados):', allDocs.filter(doc => doc.document_status_id === 3));
       }
 
       // 4. Agrupar por categoría y calcular aportados/porEntregar considerando toda la obra
@@ -219,19 +229,26 @@ export default function ServiceDocumentsPage(): JSX.Element {
       > = {};
       // Agrupar requeridos por categoría
       (requiredDocs || []).forEach((doc: any) => {
-        const cat = doc.documentation_type?.category || 'Sin categoría';
+        const docType = Array.isArray(doc.documentation_type) ? doc.documentation_type[0] : doc.documentation_type;
+        const cat = docType?.category || 'Sin categoría';
         if (!cats[cat])
           cats[cat] = { name: cat, count: 0, aportados: 0, porEntregar: 0 };
         cats[cat].count++;
       });
       // Contar como aportado si existe un documento aprobado con ese document_type_id para la obra
       (requiredDocs || []).forEach((reqDoc: any) => {
-        const cat = reqDoc.documentation_type?.category || 'Sin categoría';
+        const docType = Array.isArray(reqDoc.documentation_type) ? reqDoc.documentation_type[0] : reqDoc.documentation_type;
+        const cat = docType?.category || 'Sin categoría';
         const aportado = (allDocs || []).some(
           (doc: any) =>
             doc.document_type_id === reqDoc.document_type_id &&
             doc.document_status_id === 3
         );
+        console.log(`🔍 Verificando documento tipo ${reqDoc.document_type_id} (${docType?.name || 'sin nombre'}):`, {
+          category: cat,
+          aportado,
+          matchingDocs: allDocs.filter(doc => doc.document_type_id === reqDoc.document_type_id)
+        });
         if (cats[cat] && aportado) cats[cat].aportados++;
       });
       Object.values(cats).forEach((cat: any) => {
@@ -249,6 +266,30 @@ export default function ServiceDocumentsPage(): JSX.Element {
 
   useEffect(() => {
     if (serviceId) fetchData();
+    
+    // Suscripción a cambios en tiempo real en la tabla documents
+    const subscription = supabase
+      .channel('documents_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'documents',
+        }, 
+        (payload) => {
+          console.log('📡 Cambio detectado en documents:', payload);
+          // Refrescar los datos cuando haya cambios
+          if (serviceId) {
+            fetchData();
+          }
+        }
+      )
+      .subscribe();
+
+    // Limpiar la suscripción al desmontar
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [serviceId]);
 
   if (loading) {

@@ -228,6 +228,30 @@ export default function ServiceDocumentsCategoryPage() {
     if (serviceId && category) {
       fetchServiceData();
     }
+    
+    // Suscripción a cambios en tiempo real en la tabla documents
+    const subscription = supabase
+      .channel('documents_changes_category')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'documents',
+        }, 
+        (payload) => {
+          console.log('📡 Cambio detectado en documents (category page):', payload);
+          // Refrescar los datos cuando haya cambios
+          if (serviceId && category) {
+            fetchServiceData();
+          }
+        }
+      )
+      .subscribe();
+
+    // Limpiar la suscripción al desmontar
+    return () => {
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line
   }, [serviceId, category]);
 

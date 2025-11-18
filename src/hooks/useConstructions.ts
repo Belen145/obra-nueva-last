@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase, Construction } from "../lib/supabase";
 
 /**
  * Hook para gestionar el estado y operaciones de las obras de construcción.
  * Retorna el listado, estado de carga, error y funciones CRUD.
  */
-export function useConstructions(): {
+export function useConstructions(companyId?: string | null, authLoading?: boolean): {
   constructions: Construction[];
   loading: boolean;
   error: string | null;
@@ -28,12 +28,13 @@ export function useConstructions(): {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchConstructions = async () => {
+  const fetchConstructions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('🏗️ Fetching constructions with companyId:', companyId);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("construction")
         .select(
           `
@@ -48,13 +49,24 @@ export function useConstructions(): {
             company_type
           )
         `
-        )
-        .order("id", { ascending: false });
+        );
+
+      // Filtrar por compañía si no es admin
+      if (companyId) {
+        console.log('🔍 Aplicando filtro por compañía:', companyId);
+        query = query.eq('company_id', companyId);
+      } else {
+        console.log('👑 Sin filtro de compañía (admin o company_id null)');
+      }
+
+      const { data, error } = await query.order("id", { ascending: false });
 
       if (error) {
+        console.error('❌ Error fetching constructions:', error);
         throw error;
       }
 
+      console.log('✅ Constructions fetched:', data?.length || 0, 'obras encontradas');
       setConstructions(data || []);
     } catch (err) {
       console.error("Error fetching constructions:", err);
@@ -62,7 +74,7 @@ export function useConstructions(): {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
 
   const addConstruction = async (
     constructionData: Omit<
@@ -174,8 +186,27 @@ export function useConstructions(): {
   };
 
   useEffect(() => {
+    console.log('useConstructions: useEffect triggered with:', { companyId, authLoading });
+    
+    // Si auth aún está cargando, esperar
+    if (authLoading) {
+      console.log('useConstructions: Auth still loading, waiting...');
+      setLoading(true);
+      return;
+    }
+    
+    // Si companyId es undefined después de que auth terminó de cargar, hay un problema
+    if (companyId === undefined) {
+      console.log('useConstructions: companyId is undefined after auth loaded - problem!');
+      setLoading(false);
+      setError('No se pudo obtener la información de la compañía del usuario');
+      return;
+    }
+    
+    // Si llegamos aquí, todo está bien para hacer fetch
+    console.log('useConstructions: Conditions met, fetching constructions...');
     fetchConstructions();
-  }, []);
+  }, [companyId, authLoading]); // Removido fetchConstructions de las dependencias temporalmente
 
   return {
     constructions,

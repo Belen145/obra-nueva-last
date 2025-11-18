@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -9,13 +9,17 @@ import SearchView from './components/SearchView';
 import ServiceDocumentsPage from './components/ServiceDocumentsPage';
 import ServiceDocumentsCategoryPage from './components/ServiceDocumentsCategoryPage';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { supabase } from './lib/supabase';
 import Login from './components/Login';
 import { CookieConsent } from './components/CookieConsent';
 import { AmplitudeProvider } from './providers/AmplitudeProvider';
+import AdminDocumentManager from './components/AdminDocumentManager';
+import { useAuth } from './hooks/useAuth';
 
 function App() {
   const location = useLocation();
+  const { user, loading } = useAuth();
+
+  console.log('App.tsx: Rendering with ->', { hasUser: !!user, loading, pathname: location.pathname });
 
   // Determinar la vista activa basada en la ruta actual
   const getActiveView = () => {
@@ -26,28 +30,22 @@ function App() {
 
   const [activeView, setActiveView] = useState(getActiveView());
 
-  // Ocultar sidebar en rutas de servicios/documentos
-  const shouldShowSidebar = !location.pathname.includes('/servicios/');
+  // Ocultar sidebar en rutas de servicios/documentos y admin
+  const shouldShowSidebar = !location.pathname.includes('/servicios/') && !location.pathname.includes('/admin');
 
-  const [user, setUser] = useState<any | null>(null);
-
-  // chequear sesión y escuchar cambios
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        
-        setUser(session?.user ?? null);
-      }
+  // Mostrar loading mientras se verifica la autenticación
+  if (loading) {
+    console.log('App.tsx: Auth loading - showing loading state');
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div>Cargando...</div>
+      </div>
     );
-    return () => {
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
+  }
 
   // si no hay usuario → mostramos login
   if (!user) {
+    console.log('App.tsx: No user - showing login');
     return (
       <NotificationProvider>
         <Login />
@@ -55,6 +53,19 @@ function App() {
     );
   }
 
+  // Ruta especial para admin - sin sidebar ni layout principal
+  if (location.pathname === '/admin') {
+    console.log('App.tsx: Admin route - showing AdminDocumentManager');
+    return (
+      <AmplitudeProvider>
+        <NotificationProvider>
+          <AdminDocumentManager />
+        </NotificationProvider>
+      </AmplitudeProvider>
+    );
+  }
+
+  console.log('App.tsx: Normal route - showing main layout with ConstructionView');
   return (
     <AmplitudeProvider>
       <NotificationProvider>

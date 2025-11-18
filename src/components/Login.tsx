@@ -1,12 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNotification } from '../contexts/NotificationContext'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { showNotification } = useNotification()
+  const navigate = useNavigate()
+  const { user, loading } = useAuth()
+
+  // Si el usuario está autenticado, navegar a la página principal
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('Login: Usuario autenticado, navegando a /');
+      navigate('/')
+    }
+  }, [user, loading, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

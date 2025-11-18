@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useConstructions } from '../hooks/useConstructions';
 import { useServicesCache } from '../hooks/useServicesCache';
+import { useAuth } from '../hooks/useAuth';
 import ClientDocumentManagementWizard from './ClientDocumentManagementWizard';
 import ServiceStatusManagement from './ServiceStatusManagement';
 import { ServiceIncidenceModal } from './ServiceIncidenceModal';
@@ -37,6 +38,7 @@ import { trackEvent } from '../lib/amplitude';
  * Permite filtrar, buscar, expandir y gestionar servicios asociados a cada obra.
  */
 export default function ConstructionView() {
+  console.log('🏗️ ConstructionView: Component rendering...');
   const navigate = useNavigate();
   // Opciones de estado para el filtro
   const statusOptions = [
@@ -47,8 +49,32 @@ export default function ConstructionView() {
   ];
 
   // Hooks personalizados para datos de obras y servicios
-  const { constructions, loading, error, refetch } = useConstructions();
+  const { isAdmin, companyId, loading: authLoading } = useAuth();
+  const { constructions, loading, error, refetch } = useConstructions(
+    isAdmin ? null : companyId, 
+    authLoading
+  );
   const { getServices, getServicesCacheState, clearCache } = useServicesCache();
+  
+  // Debug logs
+  useEffect(() => {
+    console.log('ConstructionView: Auth state ->', { 
+      isAdmin, 
+      companyId, 
+      authLoading,
+      passedToHook: isAdmin ? null : companyId
+    });
+  }, [isAdmin, companyId, authLoading]);
+
+  // Agregar log cada vez que cambie algún estado del hook useConstructions
+  useEffect(() => {
+    console.log('ConstructionView: Constructions state ->', {
+      loading,
+      error,
+      constructionsCount: constructions.length
+    });
+  }, [loading, error, constructions.length]);
+  
   // Estados locales
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -886,14 +912,17 @@ export default function ConstructionView() {
 
   // Renderizado principal
   if (loading) {
+    console.log('🔄 ConstructionView: En estado LOADING ->', { authLoading, loading, companyId });
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="ml-4">Cargando obras...</div>
       </div>
     );
   }
 
   if (error) {
+    console.log('❌ ConstructionView: En estado ERROR ->', { error, authLoading, loading, companyId });
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -916,6 +945,17 @@ export default function ConstructionView() {
       </div>
     );
   }
+
+  console.log('🏗️ ConstructionView: Before main render ->', {
+    authLoading,
+    loading,
+    constructionsCount: constructions.length,
+    error,
+    isAdmin,
+    companyId
+  });
+
+  console.log('✅ ConstructionView: Renderizando contenido principal');
 
   return (
     <div className="p-6 pt-20 bg-zen-grey-0">
