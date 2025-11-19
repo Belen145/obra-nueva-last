@@ -16,6 +16,7 @@ import { useDocumentUpload } from '../hooks/useDocumentUpload';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
+import { notifyDocumentUploaded } from '../services/slackService';
 
 export default function ServiceDocumentsCategoryPage() {
   const { showNotification } = useNotification();
@@ -190,6 +191,23 @@ export default function ServiceDocumentsCategoryPage() {
               [documentTypeId]: currentServiceDoc.id,
             }));
           }
+        }
+      }
+
+      // Si el guardado fue exitoso, enviar notificación a Slack
+      if (result) {
+        try {
+          const docType = requiredDocuments.find(doc => doc.document_type_id === documentTypeId);
+          await notifyDocumentUploaded(
+            service?.construction?.name || 'Obra desconocida',
+            docType?.documentation_type?.name || 'Documento de texto',
+            category || 'Categoría desconocida',
+            'Documento de texto actualizado'
+          );
+          console.log('✅ Notificación de Slack enviada para documento de texto');
+        } catch (slackError) {
+          console.error('❌ Error enviando notificación de Slack para documento de texto:', slackError);
+          // No bloqueamos la operación si Slack falla
         }
       }
     } catch (error) {
@@ -545,6 +563,21 @@ export default function ServiceDocumentsCategoryPage() {
         title: 'Documentación',
         body: 'El documento se ha guardado exitosamente.'
       });
+
+      // Notificación a Slack
+      try {
+        const docType = requiredDocuments.find(doc => doc.document_type_id === documentTypeId);
+        await notifyDocumentUploaded(
+          service?.construction?.name || 'Obra desconocida',
+          docType?.documentation_type?.name || 'Documento',
+          category || 'Categoría desconocida',
+          fileName
+        );
+        console.log('✅ Notificación de Slack enviada exitosamente');
+      } catch (slackError) {
+        console.error('❌ Error enviando notificación de Slack:', slackError);
+        // No bloqueamos la operación si Slack falla
+      }
 
       setFileUploadStates((prev) => ({
         ...prev,
