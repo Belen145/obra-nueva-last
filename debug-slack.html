@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Slack - Obra Nueva</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+        .section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+        }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 4px; 
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Completo - Notificaciones Slack</h1>
+    
+    <div class="section">
+        <h2>📋 Información del Entorno</h2>
+        <div id="env-info"></div>
+        <button onclick="checkEnvironment()">Verificar Entorno</button>
+    </div>
+
+    <div class="section">
+        <h2>🌐 Test de Conectividad</h2>
+        <div id="connectivity-result"></div>
+        <button onclick="testConnectivity()">Test Conectividad Básica</button>
+        <button onclick="testWithDifferentURLs()">Probar URLs Alternativas</button>
+    </div>
+
+    <div class="section">
+        <h2>⚡ Test de Función Netlify</h2>
+        <div id="function-result"></div>
+        <button onclick="testFunction()">Test Función Principal</button>
+        <button onclick="testFunctionDebug()">Test con Debug Extendido</button>
+    </div>
+
+    <div class="section">
+        <h2>📱 Test del Servicio Slack</h2>
+        <div id="slack-service-result"></div>
+        <button onclick="testSlackService()">Test Servicio Completo</button>
+    </div>
+
+    <div class="section">
+        <h2>🔍 Logs de Debug</h2>
+        <div id="debug-logs"></div>
+        <button onclick="clearLogs()">Limpiar Logs</button>
+    </div>
+
+    <script>
+        let debugLogs = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLogs.unshift(`[${timestamp}] ${message}`);
+            updateDebugLogs();
+        }
+        
+        function updateDebugLogs() {
+            document.getElementById('debug-logs').innerHTML = 
+                `<div class="result info">${debugLogs.slice(0, 20).join('\n')}</div>`;
+        }
+        
+        function clearLogs() {
+            debugLogs = [];
+            updateDebugLogs();
+        }
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        function checkEnvironment() {
+            addLog('🔍 Verificando entorno...');
+            
+            const info = {
+                hostname: window.location.hostname,
+                origin: window.location.origin,
+                href: window.location.href,
+                userAgent: navigator.userAgent.substring(0, 50) + '...',
+                isDev: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+                hasViteSlackUrl: !!import.meta?.env?.VITE_SLACK_WEBHOOK_URL
+            };
+            
+            let message = `<strong>🌍 Información del Entorno:</strong>\n`;
+            message += `Hostname: ${info.hostname}\n`;
+            message += `Origin: ${info.origin}\n`;
+            message += `URL Completa: ${info.href}\n`;
+            message += `Entorno: ${info.isDev ? '🏠 Desarrollo' : '🚀 Producción'}\n`;
+            message += `Variable VITE_SLACK_WEBHOOK_URL: ${info.hasViteSlackUrl ? '✅ Configurada' : '❌ No encontrada'}\n`;
+            message += `User Agent: ${info.userAgent}`;
+            
+            showResult('env-info', message, 'info');
+            addLog(`Entorno verificado: ${info.isDev ? 'DEV' : 'PROD'} en ${info.hostname}`);
+        }
+
+        async function testConnectivity() {
+            addLog('🌐 Probando conectividad básica...');
+            showResult('connectivity-result', '🔄 Probando conectividad...', 'info');
+            
+            const baseUrl = window.location.origin;
+            
+            try {
+                // Test 1: Verificar que el sitio responde
+                const siteResponse = await fetch(baseUrl);
+                addLog(`✅ Sitio principal responde: ${siteResponse.status}`);
+                
+                // Test 2: Verificar endpoint de funciones
+                const functionsEndpoint = `${baseUrl}/.netlify/functions/`;
+                try {
+                    const functionsResponse = await fetch(functionsEndpoint);
+                    addLog(`📊 Endpoint de funciones: ${functionsResponse.status}`);
+                } catch (e) {
+                    addLog(`⚠️ Endpoint de funciones no accesible: ${e.message}`);
+                }
+                
+                // Test 3: Verificar función específica con OPTIONS
+                try {
+                    const optionsResponse = await fetch(`${baseUrl}/.netlify/functions/slack-notify`, {
+                        method: 'OPTIONS'
+                    });
+                    addLog(`🔧 Test OPTIONS en slack-notify: ${optionsResponse.status}`);
+                } catch (e) {
+                    addLog(`❌ OPTIONS en slack-notify falló: ${e.message}`);
+                }
+                
+                showResult('connectivity-result', '✅ Tests de conectividad completados. Ver logs para detalles.', 'success');
+                
+            } catch (error) {
+                addLog(`❌ Error en test de conectividad: ${error.message}`);
+                showResult('connectivity-result', `❌ Error de conectividad: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWithDifferentURLs() {
+            addLog('🔄 Probando URLs alternativas...');
+            
+            const possibleUrls = [
+                window.location.origin,
+                'https://obra-nueva-last.netlify.app',
+                'https://belen145-obra-nueva-last.netlify.app',
+                'https://obra-nueva.netlify.app'
+            ];
+            
+            for (const url of possibleUrls) {
+                try {
+                    addLog(`🔍 Probando: ${url}`);
+                    const response = await fetch(`${url}/.netlify/functions/slack-notify`, {
+                        method: 'OPTIONS'
+                    });
+                    addLog(`✅ ${url}: ${response.status} - ${response.statusText}`);
+                } catch (error) {
+                    addLog(`❌ ${url}: ${error.message}`);
+                }
+            }
+        }
+
+        async function testFunction() {
+            addLog('⚡ Probando función Netlify...');
+            showResult('function-result', '🔄 Probando función...', 'info');
+            
+            const baseUrl = window.location.origin;
+            const testData = {
+                text: 'Test desde debug page',
+                obra: 'Debug Test',
+                documento: 'Test Document',
+                categoria: 'Debug',
+                archivo: 'debug-test.pdf'
+            };
+            
+            try {
+                addLog('📤 Enviando request a función...');
+                const response = await fetch(`${baseUrl}/.netlify/functions/slack-notify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                addLog(`📨 Respuesta recibida: ${response.status} ${response.statusText}`);
+                
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch {
+                    result = responseText;
+                }
+                
+                if (response.ok) {
+                    showResult('function-result', `✅ Función ejecutada correctamente\nStatus: ${response.status}\nRespuesta: ${JSON.stringify(result, null, 2)}`, 'success');
+                    addLog('✅ Función ejecutada exitosamente');
+                } else {
+                    showResult('function-result', `❌ Error en función\nStatus: ${response.status}\nError: ${JSON.stringify(result, null, 2)}`, 'error');
+                    addLog(`❌ Error en función: ${response.status}`);
+                }
+                
+            } catch (error) {
+                showResult('function-result', `❌ Error de red: ${error.message}`, 'error');
+                addLog(`❌ Error de red: ${error.message}`);
+            }
+        }
+
+        async function testFunctionDebug() {
+            addLog('🔧 Test de función con debug extendido...');
+            
+            // Probar con y sin headers, diferentes métodos, etc.
+            const tests = [
+                { name: 'POST sin headers', method: 'POST', headers: {}, body: '{"test": true}' },
+                { name: 'POST con Content-Type', method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{"test": true}' },
+                { name: 'GET (debería fallar)', method: 'GET', headers: {}, body: null },
+                { name: 'OPTIONS (CORS)', method: 'OPTIONS', headers: {}, body: null }
+            ];
+            
+            const baseUrl = window.location.origin;
+            let results = [];
+            
+            for (const test of tests) {
+                try {
+                    addLog(`🧪 ${test.name}...`);
+                    const response = await fetch(`${baseUrl}/.netlify/functions/slack-notify`, {
+                        method: test.method,
+                        headers: test.headers,
+                        body: test.body
+                    });
+                    
+                    const responseText = await response.text();
+                    results.push(`${test.name}: ${response.status} - ${responseText.substring(0, 100)}`);
+                    addLog(`📊 ${test.name}: ${response.status}`);
+                } catch (error) {
+                    results.push(`${test.name}: ERROR - ${error.message}`);
+                    addLog(`❌ ${test.name}: ${error.message}`);
+                }
+            }
+            
+            showResult('function-result', results.join('\n\n'), 'info');
+        }
+
+        async function testSlackService() {
+            addLog('📱 Probando servicio Slack completo...');
+            showResult('slack-service-result', '🔄 Probando servicio...', 'info');
+            
+            try {
+                // Simular el código del servicio slackService.simple.ts
+                const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const baseUrl = isDev ? 'http://localhost:8888' : window.location.origin;
+                
+                addLog(`🌍 Entorno detectado: ${isDev ? 'DEV' : 'PROD'}`);
+                addLog(`🔗 URL base: ${baseUrl}`);
+                
+                const message = `🏗️ **Nuevo documento subido**\n**Obra:** Test Completo\n**Documento:** Documento de Prueba\n**Categoría:** Debug\n**Archivo:** test-complete.pdf`;
+                
+                const response = await fetch(`${baseUrl}/.netlify/functions/slack-notify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: message,
+                        obra: 'Test Completo',
+                        documento: 'Documento de Prueba',
+                        categoria: 'Debug',
+                        archivo: 'test-complete.pdf'
+                    }),
+                });
+                
+                addLog(`📡 Respuesta: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showResult('slack-service-result', `✅ Servicio funcionando\n\n¡Deberías haber recibido una notificación en Slack!\n\nRespuesta: ${JSON.stringify(result, null, 2)}`, 'success');
+                    addLog('✅ ¡Notificación enviada a Slack!');
+                } else {
+                    const errorData = await response.text();
+                    showResult('slack-service-result', `❌ Error en servicio\nStatus: ${response.status}\nError: ${errorData}`, 'error');
+                    addLog(`❌ Error en servicio: ${response.status}`);
+                }
+                
+            } catch (error) {
+                showResult('slack-service-result', `❌ Error: ${error.message}`, 'error');
+                addLog(`❌ Error en servicio: ${error.message}`);
+            }
+        }
+
+        // Auto-ejecutar al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkEnvironment();
+            addLog('🚀 Debug page cargada');
+        });
+    </script>
+</body>
+</html>
