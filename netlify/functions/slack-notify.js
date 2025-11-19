@@ -86,47 +86,99 @@ exports.handler = async (event, context) => {
     };
 
     console.log('📤 Enviando mensaje a Slack...');
+    console.log('🔗 URL del webhook:', webhookUrl.substring(0, 50) + '...');
+    console.log('📋 Mensaje a enviar:', JSON.stringify(slackMessage, null, 2));
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(slackMessage),
-    });
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(slackMessage),
+      });
 
-    console.log('📡 Respuesta de Slack:', response.status, response.statusText);
+      console.log('📡 Respuesta de Slack:', response.status, response.statusText);
 
-    if (response.ok) {
-      console.log('✅ Notificación enviada exitosamente');
+      if (response.ok) {
+        console.log('✅ Notificación enviada exitosamente');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: 'Notificación enviada a Slack' 
+          })
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('❌ Error de Slack:', errorText);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Error al enviar a Slack', 
+            details: errorText,
+            slackStatus: response.status 
+          })
+        };
+      }
+    } catch (fetchError) {
+      console.log('❌ Error en fetch a Slack:', fetchError.message);
+      console.log('🔍 Stack trace:', fetchError.stack);
+      
+      // Intentar envío simple como fallback
+      try {
+        console.log('🔄 Intentando envío simple como fallback...');
+        const simpleMessage = {
+          text: `📋 Nuevo documento subido\n🏗️ Obra: ${requestBody.obra}\n📄 Documento: ${requestBody.documento}`
+        };
+        
+        const fallbackResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(simpleMessage),
+        });
+        
+        if (fallbackResponse.ok) {
+          console.log('✅ Envío simple exitoso');
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+              success: true, 
+              message: 'Notificación enviada a Slack (modo simple)' 
+            })
+          };
+        } else {
+          console.log('❌ Fallback también falló:', fallbackResponse.status);
+        }
+      } catch (fallbackError) {
+        console.log('❌ Error en fallback:', fallbackError.message);
+      }
+      
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
         body: JSON.stringify({ 
-          success: true, 
-          message: 'Notificación enviada a Slack' 
-        })
-      };
-    } else {
-      const errorText = await response.text();
-      console.log('❌ Error de Slack:', errorText);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          error: 'Error al enviar a Slack', 
-          details: errorText 
+          error: 'Error interno', 
+          details: fetchError.message,
+          stack: fetchError.stack
         })
       };
     }
   } catch (error) {
-    console.log('❌ Error en función:', error);
+    console.log('❌ Error general en función:', error.message);
+    console.log('🔍 Stack trace general:', error.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: 'Error interno', 
-        details: error.message 
+        error: 'Error interno general', 
+        details: error.message,
+        stack: error.stack
       })
     };
   }
