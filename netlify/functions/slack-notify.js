@@ -79,7 +79,9 @@ exports.handler = async (event, context) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: requestBody.text || `✅ Documento *${requestBody.archivo || 'archivo'}* subido en la obra *${requestBody.obra || 'obra'}*`
+            text: requestBody.documentUrl 
+              ? `*🔗 Enlace:* <${requestBody.documentUrl}|📥 Descargar documento>`
+              : (requestBody.text || `✅ Documento *${requestBody.archivo || 'archivo'}* subido en la obra *${requestBody.obra || 'obra'}*`)
           }
         }
       ]

@@ -8,13 +8,15 @@ export async function notifyDocumentUploaded(
   obraName: string,
   documentName: string,
   categoria: string,
-  archivo: string
+  archivo: string,
+  documentUrl?: string
 ): Promise<boolean> {
   console.log('🔔 Slack: Iniciando notificación de documento subido', {
     obra: obraName,
     documento: documentName,
     categoria,
-    archivo
+    archivo,
+    hasUrl: !!documentUrl
   });
 
   try {
@@ -39,7 +41,8 @@ export async function notifyDocumentUploaded(
         obra: obraName,
         documento: documentName,
         categoria: categoria,
-        archivo: archivo
+        archivo: archivo,
+        documentUrl: documentUrl // Agregar URL del documento
       }),
     });
 
@@ -75,6 +78,7 @@ export async function testSlackConnection(): Promise<boolean> {
     'Test de Integración',
     'Documento de Prueba',
     'Test',
-    'test-document.pdf'
+    'test-document.pdf',
+    'https://example.com/test-document.pdf'
   );
 }

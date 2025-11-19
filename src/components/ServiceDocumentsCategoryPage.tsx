@@ -571,7 +571,8 @@ export default function ServiceDocumentsCategoryPage() {
           service?.construction?.name || 'Obra desconocida',
           docType?.documentation_type?.name || 'Documento',
           category || 'Categoría desconocida',
-          fileName
+          fileName,
+          fileUrl || undefined // Pasar la URL del documento
         );
         console.log('✅ Notificación de Slack enviada exitosamente');
       } catch (slackError) {
