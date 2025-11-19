@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Slack Integration</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: 50px auto; 
+            padding: 20px; 
+        }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 10px 0; 
+        }
+        button:hover { background: #45a049; }
+        .result { 
+            margin: 20px 0; 
+            padding: 10px; 
+            border-radius: 4px; 
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Test de Integración de Slack</h1>
+    
+    <div>
+        <button onclick="testEnvironmentVariables()">1. Test Variables de Entorno</button>
+        <div id="env-result"></div>
+    </div>
+    
+    <div>
+        <button onclick="testNetlifyFunction()">2. Test Función Netlify</button>
+        <div id="netlify-result"></div>
+    </div>
+    
+    <div>
+        <button onclick="testSlackService()">3. Test Servicio Slack Completo</button>
+        <div id="slack-result"></div>
+    </div>
+
+    <script>
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        function testEnvironmentVariables() {
+            showResult('env-result', '🔍 Verificando variables de entorno...', 'info');
+            
+            const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const slackUrl = import.meta.env?.VITE_SLACK_WEBHOOK_URL;
+            
+            let message = `<strong>Entorno:</strong> ${isDev ? 'Desarrollo' : 'Producción'}<br>`;
+            message += `<strong>URL base:</strong> ${window.location.origin}<br>`;
+            
+            if (slackUrl) {
+                message += `<strong>VITE_SLACK_WEBHOOK_URL:</strong> ✅ Configurada (${slackUrl.substring(0, 30)}...)<br>`;
+                showResult('env-result', message, 'success');
+            } else {
+                message += `<strong>VITE_SLACK_WEBHOOK_URL:</strong> ❌ NO configurada<br>`;
+                showResult('env-result', message, 'error');
+            }
+        }
+
+        async function testNetlifyFunction() {
+            showResult('netlify-result', '🔍 Probando función de Netlify...', 'info');
+            
+            try {
+                const response = await fetch('/.netlify/functions/slack-notify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: 'Test de función Netlify desde test-slack.html',
+                        obra: 'Test Obra',
+                        documento: 'Test Documento',
+                        categoria: 'Test Categoría',
+                        archivo: 'test.pdf'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('netlify-result', `✅ Función Netlify funcionando correctamente<br>Respuesta: ${JSON.stringify(result)}`, 'success');
+                } else {
+                    showResult('netlify-result', `❌ Error en función Netlify<br>Status: ${response.status}<br>Error: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                showResult('netlify-result', `❌ Error conectando con función Netlify<br>Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSlackService() {
+            showResult('slack-result', '🔍 Probando servicio completo de Slack...', 'info');
+            
+            try {
+                // Simulamos la importación del servicio
+                const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const baseUrl = isDev ? 'http://localhost:8888' : window.location.origin;
+                
+                const response = await fetch(`${baseUrl}/.netlify/functions/slack-notify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: '🏗️ **Nuevo documento subido**\n**Obra:** Test de integración\n**Documento:** Documento de prueba\n**Categoría:** Test\n**Archivo:** test-document.pdf',
+                        obra: 'Test de integración',
+                        documento: 'Documento de prueba',
+                        categoria: 'Test',
+                        archivo: 'test-document.pdf'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showResult('slack-result', `✅ ¡Servicio de Slack funcionando! Deberías haber recibido una notificación en Slack.<br>Respuesta: ${JSON.stringify(result)}`, 'success');
+                } else {
+                    showResult('slack-result', `❌ Error en servicio de Slack<br>Status: ${response.status}<br>Error: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                showResult('slack-result', `❌ Error probando servicio de Slack<br>Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-ejecutar test de variables al cargar la página
+        document.addEventListener('DOMContentLoaded', testEnvironmentVariables);
+    </script>
+</body>
+</html>
