@@ -1,61 +1,39 @@
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// netlify/functions/slack-notify.ts
-var slack_notify_exports = {};
-__export(slack_notify_exports, {
-  handler: () => handler
-});
-module.exports = __toCommonJS(slack_notify_exports);
-var handler = async (event, context) => {
+// netlify/functions/slack-notify.js
+exports.handler = async (event, context) => {
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json"
+  };
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
-      },
+      headers,
       body: ""
     };
   }
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
-      },
+      headers,
       body: JSON.stringify({ error: "M\xE9todo no permitido" })
     };
   }
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    console.error("\u274C Slack webhook URL no configurada");
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Slack webhook no configurado" })
-    };
-  }
   try {
+    console.log("\u{1F680} Funci\xF3n slack-notify iniciada");
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    console.log("\u{1F50D} Webhook URL configurada:", !!webhookUrl);
+    if (!webhookUrl) {
+      console.log("\u274C SLACK_WEBHOOK_URL no configurada");
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "Webhook URL no configurada" })
+      };
+    }
     const requestBody = JSON.parse(event.body || "{}");
-    console.log("\u{1F4E8} Netlify Function: Recibiendo petici\xF3n para Slack:", requestBody);
+    console.log("\u{1F4E8} Datos recibidos:", requestBody);
     const slackMessage = {
       text: `\u{1F4CB} *Nuevo documento subido*`,
       blocks: [
@@ -100,7 +78,7 @@ ${requestBody.userEmail}`
         }
       ]
     };
-    console.log("\u{1F4E4} Netlify Function: Enviando a Slack...");
+    console.log("\u{1F4E4} Enviando mensaje a Slack...");
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
@@ -108,58 +86,39 @@ ${requestBody.userEmail}`
       },
       body: JSON.stringify(slackMessage)
     });
-    console.log("\u{1F4E1} Netlify Function: Respuesta de Slack:", {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    });
+    console.log("\u{1F4E1} Respuesta de Slack:", response.status, response.statusText);
     if (response.ok) {
-      console.log("\u2705 Netlify Function: Notificaci\xF3n enviada exitosamente");
+      console.log("\u2705 Notificaci\xF3n enviada exitosamente");
       return {
         statusCode: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type",
-          "Access-Control-Allow-Methods": "POST, OPTIONS"
-        },
-        body: JSON.stringify({ success: true, message: "Notificaci\xF3n enviada a Slack" })
+        headers,
+        body: JSON.stringify({
+          success: true,
+          message: "Notificaci\xF3n enviada a Slack"
+        })
       };
     } else {
       const errorText = await response.text();
-      console.error("\u274C Netlify Function: Error de Slack:", errorText);
+      console.log("\u274C Error de Slack:", errorText);
       return {
-        statusCode: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type",
-          "Access-Control-Allow-Methods": "POST, OPTIONS"
-        },
+        statusCode: 400,
+        headers,
         body: JSON.stringify({
-          success: false,
-          error: "Error enviando a Slack",
+          error: "Error al enviar a Slack",
           details: errorText
         })
       };
     }
   } catch (error) {
-    console.error("\u274C Netlify Function: Error:", error);
+    console.log("\u274C Error en funci\xF3n:", error);
     return {
       statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
-      },
+      headers,
       body: JSON.stringify({
-        success: false,
-        error: "Error interno del servidor",
-        details: error instanceof Error ? error.message : "Error desconocido"
+        error: "Error interno",
+        details: error.message
       })
     };
   }
 };
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  handler
-});
 //# sourceMappingURL=slack-notify.js.map
