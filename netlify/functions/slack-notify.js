@@ -59,19 +59,19 @@ exports.handler = async (event, context) => {
           fields: [
             {
               type: "mrkdwn",
-              text: `*🏗️ Obra:*\n${requestBody.obraName}`
+              text: `*🏗️ Obra:*\n${requestBody.obra || 'No especificada'}`
             },
             {
               type: "mrkdwn",
-              text: `*📄 Documento:*\n${requestBody.documentName}`
+              text: `*📄 Documento:*\n${requestBody.documento || 'No especificado'}`
             },
             {
               type: "mrkdwn",
-              text: `*👤 Usuario:*\n${requestBody.userName}`
+              text: `*📂 Categoría:*\n${requestBody.categoria || 'No especificada'}`
             },
             {
               type: "mrkdwn",
-              text: `*📧 Email:*\n${requestBody.userEmail}`
+              text: `*📎 Archivo:*\n${requestBody.archivo || 'No especificado'}`
             }
           ]
         },
@@ -79,7 +79,7 @@ exports.handler = async (event, context) => {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*🔗 Enlace:* <${requestBody.downloadUrl}|Ver documento>`
+            text: requestBody.text || `✅ Documento *${requestBody.archivo || 'archivo'}* subido en la obra *${requestBody.obra || 'obra'}*`
           }
         }
       ]
