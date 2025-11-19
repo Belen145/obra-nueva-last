@@ -1,0 +1,20 @@
+{
+	"geolocation": {
+		"data": {
+			"city": "Madrid",
+			"country": {
+				"code": "ES",
+				"name": "Spain"
+			},
+			"subdivision": {
+				"code": "MD",
+				"name": "Madrid"
+			},
+			"timezone": "Europe/Madrid",
+			"latitude": 40.4328,
+			"longitude": -3.701,
+			"postalCode": "28010"
+		},
+		"timestamp": 1763552277525
+	}
+}
