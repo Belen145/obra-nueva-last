@@ -16,7 +16,7 @@ import { useDocumentUpload } from '../hooks/useDocumentUpload';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
-import { notifyDocumentUploaded } from '../services/slackService';
+import { notifyDocumentUploaded } from '../services/slackService.simple';
 
 export default function ServiceDocumentsCategoryPage() {
   const { showNotification } = useNotification();

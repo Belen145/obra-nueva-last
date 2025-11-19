@@ -283,5 +283,21 @@ class SlackService {
 
 export const slackService = new SlackService();
 
+// Función wrapper para mantener compatibilidad
+export const notifyDocumentUploaded = (
+  obraName: string,
+  documentName: string,
+  categoria: string,
+  archivo: string
+): Promise<boolean> => {
+  return slackService.notifyDocumentUploaded({
+    obraName,
+    documentName,
+    downloadUrl: '#', // URL ficticia para compatibilidad
+    userName: 'Usuario',
+    userEmail: 'usuario@example.com'
+  });
+};
+
 // Exportar función de test para debugging desde consola
 export const testSlackConnection = () => slackService.testSlackConnection();
