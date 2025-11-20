@@ -53,18 +53,6 @@ function App() {
     );
   }
 
-  // Ruta especial para admin - sin sidebar ni layout principal
-  if (location.pathname === '/admin') {
-    console.log('App.tsx: Admin route - showing AdminDocumentManager');
-    return (
-      <AmplitudeProvider>
-        <NotificationProvider>
-          <AdminDocumentManager />
-        </NotificationProvider>
-      </AmplitudeProvider>
-    );
-  }
-
   console.log('App.tsx: Normal route - showing main layout with ConstructionView');
   return (
     <AmplitudeProvider>
@@ -76,6 +64,7 @@ function App() {
               <Route path="/" element={<ConstructionView />} />
               <Route path="/constructions" element={<ConstructionView />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/admin" element={<AdminDocumentManager />} />
               <Route
                 path="/servicios/:serviceId/documentos"
                 element={<ServiceDocumentsPage />}
