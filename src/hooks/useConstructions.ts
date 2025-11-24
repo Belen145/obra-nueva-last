@@ -150,16 +150,18 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
           hubspotDealId = String(hubspotDealId);
         }
         
-      console.log('✅ Deal ID extraído:', hubspotDealId);
-      console.log('🔍 Tipo de deal ID:', typeof hubspotDealId);
-      
-      // Log extra visible
-      alert(`🎯 DEAL CREADO: ${hubspotDealId} (tipo: ${typeof hubspotDealId})`);
-    } catch (hubspotError) {
-      console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
-      alert('❌ ERROR en HubSpot: ' + hubspotError.message);
-      // Continuamos sin bloquear la creación de la obra
-    }      // 2. Crear la obra en Supabase con el deal ID
+        console.log('✅ Deal ID extraído:', hubspotDealId);
+        console.log('🔍 Tipo de deal ID:', typeof hubspotDealId);
+        
+        // Log extra visible
+        alert(`🎯 DEAL CREADO: ${hubspotDealId} (tipo: ${typeof hubspotDealId})`);
+      } catch (hubspotError) {
+        console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
+        alert('❌ ERROR en HubSpot: ' + (hubspotError instanceof Error ? hubspotError.message : String(hubspotError)));
+        // Continuamos sin bloquear la creación de la obra
+      }
+
+      // 2. Crear la obra en Supabase con el deal ID
       const dataToInsert = {
         ...constructionData,
         hubspot_deal_id: hubspotDealId // Guardar el ID del deal
