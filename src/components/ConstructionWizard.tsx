@@ -7,7 +7,6 @@ import { useConstructionData } from '../hooks/useConstructionData';
 import { useServiceCreation } from '../hooks/useServiceCreation';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
-import { hubSpotService } from '../services/hubspotService';
 
 interface ConstructionWizardProps {
   onClose: () => void;
@@ -408,7 +407,17 @@ export default function ConstructionWizard({
       // **INTEGRACIÓN HUBSPOT: Crear Deal ANTES de insertar en BD**
       let hubspotDealId = null;
       try {
-        console.log('🚀 CONSTRUCTIONWIZARD V1.0 - Creando Deal en HubSpot ANTES de BD...');
+        console.log('🚀 CONSTRUCTIONWIZARD V1.2 - Importando hubSpotService dinámicamente...');
+        
+        // Importación dinámica para evitar problemas de hoisting
+        const { hubSpotService } = await import('../services/hubspotService');
+        
+        // Verificar que el servicio esté disponible
+        if (!hubSpotService || typeof hubSpotService.createDealFromConstruction !== 'function') {
+          throw new Error('hubSpotService no está disponible');
+        }
+        
+        console.log('🚀 Creando Deal en HubSpot ANTES de BD...');
         const hubspotResponse = await hubSpotService.createDealFromConstruction({
           name: step1Data.name,
           address: fullAddress,
@@ -426,12 +435,18 @@ export default function ConstructionWizard({
           servicios_obra: serviciosObra,
         });
 
-        // Extraer ID del Deal
-        if (hubspotResponse && hubspotResponse.id) {
-          hubspotDealId = String(hubspotResponse.id);
-          console.log('✅ Deal creado en HubSpot - ID:', hubspotDealId);
+        // Extraer ID del Deal - más robusto
+        if (hubspotResponse) {
+          // En desarrollo: response.id, en producción: response.dealId
+          hubspotDealId = hubspotResponse.id || hubspotResponse.dealId || null;
+          if (hubspotDealId) {
+            hubspotDealId = String(hubspotDealId);
+            console.log('✅ Deal creado en HubSpot - ID:', hubspotDealId);
+          } else {
+            console.warn('⚠️ Respuesta de HubSpot no contiene ID válido:', hubspotResponse);
+          }
         } else {
-          console.warn('⚠️ Respuesta de HubSpot no contiene ID:', hubspotResponse);
+          console.warn('⚠️ Respuesta de HubSpot vacía');
         }
       } catch (hubspotError) {
         // No fallar la creación local si HubSpot falla
