@@ -112,10 +112,27 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         
         const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
         
-        // Extraer el deal ID de la respuesta
-        hubspotDealId = import.meta.env.DEV ? hubspotResponse.id : hubspotResponse.dealId;
+        console.log('🔍 Respuesta completa de HubSpot:', hubspotResponse);
         
-        console.log('✅ Deal creado en HubSpot:', hubspotDealId);
+        // Extraer el deal ID de la respuesta - probemos diferentes estructuras
+        if (import.meta.env.DEV) {
+          hubspotDealId = hubspotResponse.id;
+        } else {
+          // En producción, la función Netlify devuelve { success: true, dealId: "xxx", message: "..." }
+          hubspotDealId = hubspotResponse.dealId || 
+                         hubspotResponse.id || 
+                         hubspotResponse.recordId ||
+                         hubspotResponse.data?.id ||
+                         hubspotResponse.data?.dealId;
+        }
+        
+        // Convertir a string si es necesario
+        if (hubspotDealId && typeof hubspotDealId !== 'string') {
+          hubspotDealId = String(hubspotDealId);
+        }
+        
+        console.log('✅ Deal ID extraído:', hubspotDealId);
+        console.log('🔍 Tipo de deal ID:', typeof hubspotDealId);
       } catch (hubspotError) {
         console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
         // Continuamos sin bloquear la creación de la obra
@@ -126,6 +143,11 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         ...constructionData,
         hubspot_deal_id: hubspotDealId // Guardar el ID del deal
       };
+
+      console.log('💾 Datos a insertar en Supabase:', {
+        name: dataToInsert.name,
+        hubspot_deal_id: dataToInsert.hubspot_deal_id
+      });
 
       const { data, error } = await supabase
         .from("construction")
@@ -147,8 +169,15 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         .single();
 
       if (error) {
+        console.error('❌ Error insertando en Supabase:', error);
         throw error;
       }
+
+      console.log('✅ Construcción creada en Supabase:', {
+        id: data.id,
+        name: data.name,
+        hubspot_deal_id: data.hubspot_deal_id
+      });
 
       console.log('✅ Construcción creada:', data.id, 'con HubSpot Deal:', hubspotDealId);
       setConstructions((prev: Construction[]) => [data, ...prev]);
