@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase, Construction } from "../lib/supabase";
+import { hubSpotService } from "../services/hubspotService";
 
 /**
  * Hook para gestionar el estado y operaciones de las obras de construcción.
@@ -83,9 +84,52 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
     >
   ) => {
     try {
+      console.log('🏗️ Creando nueva construcción...');
+      
+      let hubspotDealId = null;
+      
+      // 1. Crear deal en HubSpot primero
+      try {
+        console.log('📤 Creando deal en HubSpot...');
+        
+        // Mapear datos de construcción al formato esperado por HubSpot
+        const hubspotData = {
+          name: constructionData.name,
+          address: constructionData.address || '',
+          postal_code: '', // No tenemos este campo en Construction
+          municipality: '', // No tenemos este campo en Construction
+          responsible_name: constructionData.responsible || '',
+          responsible_lastname: '',
+          responsible_phone: '',
+          responsible_email: '',
+          company_name: '',
+          company_cif: '',
+          fiscal_address: '',
+          housing_count: 1,
+          acometida: '',
+          servicios_obra: []
+        };
+        
+        const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
+        
+        // Extraer el deal ID de la respuesta
+        hubspotDealId = import.meta.env.DEV ? hubspotResponse.id : hubspotResponse.dealId;
+        
+        console.log('✅ Deal creado en HubSpot:', hubspotDealId);
+      } catch (hubspotError) {
+        console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
+        // Continuamos sin bloquear la creación de la obra
+      }
+
+      // 2. Crear la obra en Supabase con el deal ID
+      const dataToInsert = {
+        ...constructionData,
+        hubspot_deal_id: hubspotDealId // Guardar el ID del deal
+      };
+
       const { data, error } = await supabase
         .from("construction")
-        .insert([constructionData])
+        .insert([dataToInsert])
         .select(
           `
           *,
@@ -106,10 +150,11 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         throw error;
       }
 
+      console.log('✅ Construcción creada:', data.id, 'con HubSpot Deal:', hubspotDealId);
       setConstructions((prev: Construction[]) => [data, ...prev]);
       return { success: true, data };
     } catch (err) {
-      console.error("Error adding construction:", err);
+      console.error("❌ Error adding construction:", err);
       return {
         success: false,
         error: err instanceof Error ? err.message : "Error desconocido",

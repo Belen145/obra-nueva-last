@@ -20,6 +20,7 @@ export interface Construction {
   address: string | null;
   finish_date: string | null;
   company_id: number;
+  hubspot_deal_id: string | null; // Campo para guardar el ID del deal de HubSpot
   construction_status?: {
     id: number;
     name: string;
