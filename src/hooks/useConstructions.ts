@@ -84,8 +84,8 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
     >
   ) => {
     try {
-      console.log('🚀🚀🚀 USEONSTRUCTIONS V4.0 - FORZANDO REBUILD 16:04 🚀🚀🚀');
-      alert('🚀 VERSION 16:04 CARGADA - addConstruction iniciando');
+      console.log('🚀🚀🚀 USEONSTRUCTIONS V5.0 - DEPLOY FIX 16:30 🚀🚀🚀');
+      alert('🚀 VERSION 16:30 CARGADA - addConstruction iniciando');
       console.log('🏗️ Creando nueva construcción...');
       
       // TEST: Verificar estructura de tabla antes de insertar
