@@ -351,11 +351,13 @@ export default function ConstructionWizard({
       const responsibleName =
         `${step2Data.responsible_first_name} ${step2Data.responsible_last_name}`.trim();
 
-      // 1. Crear obra
+      // 1. Crear obra EN BASE DE DATOS con hubspot_deal_id
       const defaultStatus =
         statuses.find((s) => s.name.toLowerCase().includes('planificado')) ||
         statuses[0];
 
+      console.log('💾 Insertando en BD con Deal ID:', hubspotDealId);
+      
       const { data: construction, error: constructionError } = await supabase
         .from('construction')
         .insert({
@@ -366,11 +368,17 @@ export default function ConstructionWizard({
           responsible: responsibleName,
           number_homes: parseInt(step1Data.housing_count) || null,
           distributor_id: 1, // Distribuidor por defecto
+          hubspot_deal_id: hubspotDealId, // ✅ INCLUIR EL DEAL ID
         })
         .select()
         .single();
 
-      if (constructionError) throw constructionError;
+      if (constructionError) {
+        console.error('❌ Error al insertar en BD:', constructionError);
+        throw constructionError;
+      }
+
+      console.log('✅ Construcción creada con Deal ID:', construction?.hubspot_deal_id);
 
       // Calcular valor de acometida basado en servicios seleccionados
       const selectedServiceIds = Object.entries(step3Data.selectedServices)
@@ -397,9 +405,11 @@ export default function ConstructionWizard({
       
       console.log('📋 Servicios para HubSpot:', { acometidaValue, serviciosObra });
 
-      // **INTEGRACIÓN HUBSPOT: Crear Deal**
+      // **INTEGRACIÓN HUBSPOT: Crear Deal ANTES de insertar en BD**
+      let hubspotDealId = null;
       try {
-        await hubSpotService.createDealFromConstruction({
+        console.log('🚀 CONSTRUCTIONWIZARD V1.0 - Creando Deal en HubSpot ANTES de BD...');
+        const hubspotResponse = await hubSpotService.createDealFromConstruction({
           name: step1Data.name,
           address: fullAddress,
           postal_code: step1Data.postal_code,
@@ -416,16 +426,22 @@ export default function ConstructionWizard({
           servicios_obra: serviciosObra,
         });
 
-        console.log('✅ Deal creado en HubSpot exitosamente con todos los campos');
+        // Extraer ID del Deal
+        if (hubspotResponse && hubspotResponse.id) {
+          hubspotDealId = String(hubspotResponse.id);
+          console.log('✅ Deal creado en HubSpot - ID:', hubspotDealId);
+        } else {
+          console.warn('⚠️ Respuesta de HubSpot no contiene ID:', hubspotResponse);
+        }
       } catch (hubspotError) {
         // No fallar la creación local si HubSpot falla
         console.error('❌ Error al sincronizar con HubSpot:', hubspotError);
         
         // Mostrar notificación de advertencia
         showNotification({
-          type: 'error',
+          type: 'warning',
           title: 'Advertencia',
-          body: 'La obra se creó correctamente, pero hubo un problema al sincronizar con HubSpot.'
+          body: 'La obra se creará, pero hubo un problema al sincronizar con HubSpot.'
         });
       }
 
