@@ -86,6 +86,23 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
     try {
       console.log('🏗️ Creando nueva construcción...');
       
+      // TEST: Verificar estructura de tabla antes de insertar
+      try {
+        console.log('🔍 Verificando estructura de tabla construction...');
+        const { data: testData, error: testError } = await supabase
+          .from("construction")
+          .select("id, name, hubspot_deal_id")
+          .limit(1);
+        
+        if (!testError && testData && testData.length > 0) {
+          console.log('📊 Ejemplo de registro existente:', testData[0]);
+        } else {
+          console.log('📊 No hay registros existentes o error:', testError);
+        }
+      } catch (testError) {
+        console.log('⚠️ Error en test de estructura:', testError);
+      }
+      
       let hubspotDealId = null;
       
       // 1. Crear deal en HubSpot primero
@@ -146,8 +163,15 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
 
       console.log('💾 Datos a insertar en Supabase:', {
         name: dataToInsert.name,
-        hubspot_deal_id: dataToInsert.hubspot_deal_id
+        hubspot_deal_id: dataToInsert.hubspot_deal_id,
+        hubspot_deal_id_length: dataToInsert.hubspot_deal_id?.length,
+        all_keys: Object.keys(dataToInsert)
       });
+
+      // Verificar explícitamente que tenemos el deal ID antes de insertar
+      if (!hubspotDealId) {
+        console.warn('⚠️ ADVERTENCIA: hubspot_deal_id es null/undefined, se insertará como NULL');
+      }
 
       const { data, error } = await supabase
         .from("construction")
@@ -170,14 +194,33 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
 
       if (error) {
         console.error('❌ Error insertando en Supabase:', error);
+        console.error('❌ Datos que causaron el error:', dataToInsert);
         throw error;
       }
 
       console.log('✅ Construcción creada en Supabase:', {
         id: data.id,
         name: data.name,
-        hubspot_deal_id: data.hubspot_deal_id
+        hubspot_deal_id: data.hubspot_deal_id,
+        hubspot_deal_id_type: typeof data.hubspot_deal_id
       });
+
+      // Verificación adicional: consultar la BD directamente después de insertar
+      try {
+        const { data: verificacion, error: verifyError } = await supabase
+          .from("construction")
+          .select("id, name, hubspot_deal_id")
+          .eq("id", data.id)
+          .single();
+        
+        if (verifyError) {
+          console.error('❌ Error verificando inserción:', verifyError);
+        } else {
+          console.log('🔍 Verificación directa de BD:', verificacion);
+        }
+      } catch (verifyError) {
+        console.error('❌ Error en verificación:', verifyError);
+      }
 
       console.log('✅ Construcción creada:', data.id, 'con HubSpot Deal:', hubspotDealId);
       setConstructions((prev: Construction[]) => [data, ...prev]);
