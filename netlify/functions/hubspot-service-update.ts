@@ -4,7 +4,7 @@ export async function handler(event: any, context: any) {
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
   };
 
@@ -25,6 +25,63 @@ export async function handler(event: any, context: any) {
   }
 
   try {
+    // 🔒 VALIDACIÓN DE SEGURIDAD
+    const webhookToken = process.env.HUBSPOT_WEBHOOK_TOKEN;
+    
+    if (!webhookToken) {
+      console.log('❌ Token de webhook no configurado en variables de entorno');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Webhook token not configured' })
+      };
+    }
+
+    // Obtener token desde múltiples fuentes
+    let providedToken = null;
+    
+    if (event.httpMethod === 'POST') {
+      // Token desde header Authorization
+      const authHeader = event.headers.authorization || event.headers.Authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        providedToken = authHeader.replace('Bearer ', '');
+      }
+      
+      // También permitir token en el body como fallback
+      if (!providedToken && event.body) {
+        const bodyData = JSON.parse(event.body);
+        providedToken = bodyData.token;
+      }
+    } else if (event.httpMethod === 'GET') {
+      // Token desde query parameter
+      const queryParams = event.queryStringParameters || {};
+      providedToken = queryParams.token;
+    }
+
+    console.log('🔐 Verificando token de autorización...');
+    
+    if (!providedToken) {
+      console.log('❌ Token no proporcionado');
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Authorization token required',
+          details: 'Provide token via Authorization header (Bearer token), query parameter (?token=), or in request body'
+        })
+      };
+    }
+
+    if (providedToken !== webhookToken) {
+      console.log('❌ Token inválido');
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Invalid authorization token' })
+      };
+    }
+
+    console.log('✅ Token válido, procesando request...');
     let serviceId, statusId, comment;
 
     // Manejar diferentes métodos
