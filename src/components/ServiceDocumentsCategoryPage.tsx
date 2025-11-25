@@ -199,34 +199,66 @@ export default function ServiceDocumentsCategoryPage() {
 
       // Si el guardado fue exitoso, enviar notificación a Slack y sincronizar con HubSpot
       if (result) {
+        console.log('🔍 DEBUG: Estado antes de sincronizar con HubSpot', {
+          result,
+          documentId,
+          serviceId,
+          insertedDocuments,
+          insertedDocsType: typeof insertedDocuments,
+          insertedDocsIsArray: Array.isArray(insertedDocuments),
+          insertedDocsLength: insertedDocuments?.length
+        });
+
         // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
         try {
-          // Para insert: usar el primer documento insertado
-          // Para update: usar el documento existente
-          let docToSync = null;
-          let serviceIdToSync = null;
+          let syncDocumentId = null;
+          let syncServiceId = null;
           
-          if (insertedDocuments && insertedDocuments.length > 0) {
-            // Caso INSERT: usar el primer documento creado
-            docToSync = insertedDocuments[0];
-            serviceIdToSync = docToSync.service_id;
-          } else if (documentId) {
+          // Determinar qué documento sincronizar según el tipo de operación
+          if (documentId) {
             // Caso UPDATE: usar el documento existente
-            serviceIdToSync = parseInt(serviceId!);
-            docToSync = { id: documentId };
+            syncDocumentId = documentId;
+            syncServiceId = parseInt(serviceId!);
+            console.log('📝 UPDATE: Sincronizando documento existente', { 
+              documentId, 
+              serviceId,
+              hasServiceId: !!serviceId 
+            });
+          } else if (insertedDocuments && Array.isArray(insertedDocuments) && insertedDocuments.length > 0) {
+            // Caso INSERT: usar el primer documento creado (con validación robusta)
+            const firstDoc = insertedDocuments[0];
+            if (firstDoc && firstDoc.id && firstDoc.service_id) {
+              syncDocumentId = firstDoc.id;
+              syncServiceId = firstDoc.service_id;
+              console.log('📝 INSERT: Sincronizando documento nuevo', { 
+                documentId: firstDoc.id, 
+                serviceId: firstDoc.service_id,
+                totalInserted: insertedDocuments.length
+              });
+            } else {
+              console.warn('⚠️ Documento insertado no tiene ID o service_id válidos:', firstDoc);
+            }
+          } else {
+            console.warn('⚠️ No se pudo determinar documento para sincronizar', {
+              hasDocumentId: !!documentId,
+              hasInsertedDocs: !!insertedDocuments,
+              insertedDocsLength: insertedDocuments?.length,
+              insertedDocsType: typeof insertedDocuments
+            });
           }
           
-          if (docToSync && serviceIdToSync) {
+          // Solo continuar si tenemos los datos necesarios
+          if (syncDocumentId && syncServiceId) {
             console.log('🔄 Sincronizando documento de texto con HubSpot...', {
-              documentId: docToSync.id,
-              serviceId: serviceIdToSync,
+              documentId: syncDocumentId,
+              serviceId: syncServiceId,
               documentTypeId,
               contentLength: value.length
             });
             
             const syncSuccess = await hubSpotDocumentService.syncDocumentToHubSpot({
-              documentId: docToSync.id,
-              serviceId: serviceIdToSync,
+              documentId: syncDocumentId,
+              serviceId: syncServiceId,
               documentTypeId: documentTypeId,
               link: null,
               contentText: value
