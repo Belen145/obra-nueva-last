@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import CreateCompanyModal from './CreateCompanyModal';
+import CreateUserModal from './CreateUserModal';
 
 interface Construction {
   id: string;
@@ -38,6 +40,8 @@ export default function AdminDocumentManager() {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
   useEffect(() => {
     console.log('🔄 useEffect ejecutado - isAdmin:', isAdmin, 'authLoading:', authLoading);
@@ -451,8 +455,28 @@ export default function AdminDocumentManager() {
           <h1 className="text-2xl font-bold text-blue-600">
             📋 Panel de Administración
           </h1>
-          <div className="text-sm text-gray-600">
-            👤 Admin: {user.email}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowCreateCompanyModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              🏢 Crear Inmobiliaria
+            </button>
+            <button
+              onClick={() => setShowCreateUserModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              👤 Crear Usuario
+            </button>
+            <div className="text-sm text-gray-600">
+              👤 Admin: {user.email}
+            </div>
           </div>
         </div>
 
@@ -671,6 +695,24 @@ export default function AdminDocumentManager() {
           </div>
         </div>
       </div>
+      
+      {/* Modal para crear inmobiliaria */}
+      <CreateCompanyModal
+        isOpen={showCreateCompanyModal}
+        onClose={() => setShowCreateCompanyModal(false)}
+        onSuccess={(companyId) => {
+          console.log('✅ Nueva inmobiliaria creada con ID:', companyId);
+        }}
+      />
+      
+      {/* Modal para crear usuario */}
+      <CreateUserModal
+        isOpen={showCreateUserModal}
+        onClose={() => setShowCreateUserModal(false)}
+        onSuccess={(userId) => {
+          console.log('✅ Nuevo usuario creado con ID:', userId);
+        }}
+      />
     </div>
   );
 }
