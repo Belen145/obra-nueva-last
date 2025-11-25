@@ -479,11 +479,80 @@ export default function ConstructionWizard({
         })
         .filter(service => service.typeIds.length > 0);
 
+      let createdServices: any[] = [];
       if (servicesToCreate.length > 0) {
-        const services = await createMultipleServices(
+        createdServices = await createMultipleServices(
           construction.id,
           servicesToCreate
         );
+        
+        console.log('📋 Servicios creados:', createdServices);
+        
+        // Mapear service IDs por tipo para enviar a HubSpot
+        const serviceIdsByType: Record<number, number> = {};
+        createdServices.forEach(service => {
+          if (service.service_type_id && service.id) {
+            serviceIdsByType[service.service_type_id] = service.id;
+          }
+        });
+        
+        console.log('🎯 Service IDs mapeados para HubSpot:', serviceIdsByType);
+        
+        // Actualizar HubSpot con los service IDs
+        if (Object.keys(serviceIdsByType).length > 0) {
+          try {
+            console.log('🔄 Actualizando HubSpot con service IDs...');
+            
+            const hubspotUpdateResponse = await fetch('/.netlify/functions/hubspot-deals', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                constructionData: {
+                  name: step1Data.name,
+                  address: fullAddress,
+                  postal_code: step1Data.postal_code,
+                  municipality: step1Data.municipality,
+                  responsible_name: step2Data.responsible_first_name,
+                  responsible_lastname: step2Data.responsible_last_name,
+                  responsible_phone: step2Data.responsible_phone,
+                  responsible_email: step2Data.responsible_email,
+                  company_name: step2Data.society_name,
+                  company_cif: step2Data.society_cif,
+                  fiscal_address: fullFiscalAddress,
+                  housing_count: parseInt(step1Data.housing_count) || 0,
+                  acometida: acometidaValue,
+                  servicios_obra: serviciosObra,
+                },
+                serviceIds: serviceIdsByType
+              }),
+            });
+            
+            if (hubspotUpdateResponse.ok) {
+              const hubspotUpdateResult = await hubspotUpdateResponse.json();
+              console.log('✅ HubSpot actualizado con service IDs:', hubspotUpdateResult);
+              
+              // Si tenemos un dealId del update, actualizarlo en la BD
+              if (hubspotUpdateResult.dealId && !construction.hubspot_deal_id) {
+                const { error: updateError } = await supabase
+                  .from('construction')
+                  .update({ hubspot_deal_id: String(hubspotUpdateResult.dealId) })
+                  .eq('id', construction.id);
+                
+                if (updateError) {
+                  console.error('❌ Error actualizando Deal ID:', updateError);
+                } else {
+                  console.log('✅ Deal ID actualizado tras service mapping');
+                }
+              }
+            } else {
+              console.error('❌ Error actualizando HubSpot con service IDs');
+            }
+          } catch (updateError) {
+            console.error('❌ Error en actualización de HubSpot:', updateError);
+          }
+        }
       }
 
       onSuccess(construction.id);

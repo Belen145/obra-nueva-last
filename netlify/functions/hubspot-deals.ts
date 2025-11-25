@@ -36,8 +36,9 @@ export async function handler(event: any, context: any) {
       };
     }
 
-    const { constructionData } = JSON.parse(event.body);
+    const { constructionData, serviceIds } = JSON.parse(event.body);
     console.log('📥 Datos recibidos:', JSON.stringify(constructionData, null, 2));
+    console.log('📤 Service IDs recibidos:', serviceIds);
 
     // Validar que tengamos los datos necesarios
     if (!constructionData || !constructionData.name) {
@@ -66,8 +67,19 @@ export async function handler(event: any, context: any) {
     const ownerId = process.env.HUBSPOT_OWNER_ID || '158118434';
     console.log('👤 Owner ID usado:', ownerId);
 
+    // Mapear service IDs a campos de HubSpot según el tipo
+    const serviceTypeMapping: Record<number, string> = {
+      1: 'construction_electric_service_id',
+      2: 'final_electric_service_id', 
+      3: 'construction_water_service_id',
+      4: 'final_water_service_id',
+      5: 'pci_water_service_id',
+      6: 'construction_telecom_service_id',
+      7: 'construction_gas_service_id'
+    };
+
     // Crear deal en HubSpot con todos los campos
-    const dealProperties = {
+    const dealProperties: any = {
       properties: {
         dealname: constructionData.name,
         dealstage: '205747816',
@@ -86,6 +98,31 @@ export async function handler(event: any, context: any) {
           : constructionData.servicios_obra || '',
       }
     };
+
+    // Agregar service IDs según el mapeo
+    if (serviceIds && typeof serviceIds === 'object') {
+      console.log('📝 Procesando service IDs para HubSpot...');
+      
+      Object.entries(serviceIds).forEach(([serviceTypeId, serviceId]) => {
+        const typeId = parseInt(serviceTypeId);
+        const hubspotField = serviceTypeMapping[typeId];
+        
+        if (hubspotField && serviceId) {
+          // Validar que serviceId sea un número válido
+          const serviceIdNum = parseInt(String(serviceId));
+          if (!isNaN(serviceIdNum) && serviceIdNum > 0) {
+            dealProperties.properties[hubspotField] = String(serviceIdNum);
+            console.log(`✅ Mapeado: service_type ${typeId} -> ${hubspotField} = ${serviceIdNum}`);
+          } else {
+            console.log(`❌ Service ID inválido para tipo ${typeId}:`, serviceId);
+          }
+        } else {
+          console.log(`⚠️ Tipo de servicio no reconocido o sin ID:`, { typeId, serviceId, hubspotField });
+        }
+      });
+    }
+
+    console.log('📝 Propiedades finales del Deal:', dealProperties.properties);
 
     console.log('🚀 Enviando a HubSpot:', JSON.stringify(dealProperties, null, 2));
 
