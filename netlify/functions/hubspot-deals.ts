@@ -96,6 +96,7 @@ export async function handler(event: any, context: any) {
         servicios_obra: Array.isArray(constructionData.servicios_obra) 
           ? constructionData.servicios_obra.join(';') 
           : constructionData.servicios_obra || '',
+        contacto: constructionData.responsible_email || '',
       }
     };
 
