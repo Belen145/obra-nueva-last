@@ -491,8 +491,8 @@ export default function ConstructionWizard({
         // Mapear service IDs por tipo para enviar a HubSpot
         const serviceIdsByType: Record<number, number> = {};
         createdServices.forEach(service => {
-          if (service.service_type_id && service.id) {
-            serviceIdsByType[service.service_type_id] = service.id;
+          if (service.type_id && service.id) {
+            serviceIdsByType[service.type_id] = service.id;
           }
         });
         
