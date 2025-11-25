@@ -58,6 +58,101 @@ export default function ConstructionWizard({
   onClose,
   onSuccess,
 }: ConstructionWizardProps) {
+  // Función para crear Deal en HubSpot directamente (sin dependencias problemáticas)
+  const createHubSpotDeal = async (constructionData: {
+    name: string;
+    address: string;
+    postal_code: string;
+    municipality: string;
+    responsible_name: string;
+    responsible_lastname: string;
+    responsible_phone: string;
+    responsible_email: string;
+    company_name?: string;
+    company_cif?: string;
+    fiscal_address?: string;
+    housing_count?: number;
+    acometida?: string;
+    servicios_obra?: string[];
+  }) => {
+    try {
+      console.log('🚀 Función HubSpot local - iniciando...');
+      
+      // Detectar si estamos en desarrollo o producción
+      const isDev = import.meta.env.DEV;
+      console.log('🌍 Entorno:', isDev ? 'DEV' : 'PROD');
+      
+      if (isDev) {
+        // Desarrollo: llamada directa a HubSpot API
+        const token = import.meta.env.VITE_HUBSPOT_ACCESS_TOKEN;
+        const ownerId = import.meta.env.VITE_HUBSPOT_OWNER_ID || '123456789';
+        
+        if (!token) {
+          throw new Error('Token de HubSpot no configurado en desarrollo');
+        }
+        
+        const dealProperties = {
+          properties: {
+            dealname: constructionData.name,
+            dealstage: '205747816',
+            hubspot_owner_id: ownerId,
+            enviar_presupuesto: true,
+            direccion_obra: constructionData.address || '',
+            codigo_postal_obra: constructionData.postal_code || '',
+            municipio_obra: constructionData.municipality || '',
+            razon_social_peticionario: constructionData.company_name || '',
+            cif_peticionario: constructionData.company_cif || '',
+            domicilio_fiscal_peticionario: constructionData.fiscal_address || '',
+            numero_viviendas: constructionData.housing_count || 0,
+            acometida: constructionData.acometida || '',
+            servicios_obra: constructionData.servicios_obra ? constructionData.servicios_obra.join(';') : '',
+          }
+        };
+        
+        const response = await fetch('/api/hubspot/crm/v3/objects/deals', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dealProperties),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HubSpot API Error: ${response.status} - ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Deal creado (DEV):', result.id);
+        return { id: result.id };
+        
+      } else {
+        // Producción: llamada a función Netlify
+        const response = await fetch('/.netlify/functions/hubspot-deals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ constructionData }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Netlify Function Error: ${response.status} - ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Deal creado (PROD):', result.dealId);
+        return { dealId: result.dealId };
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en createHubSpotDeal:', error);
+      throw error;
+    }
+  };
+
   // Estado para el modal de cancelación
   const [showCancelModal, setShowCancelModal] = useState(false);
   // Estado del paso actual y carga
@@ -407,18 +502,10 @@ export default function ConstructionWizard({
       // **INTEGRACIÓN HUBSPOT: Crear Deal ANTES de insertar en BD**
       let hubspotDealId = null;
       try {
-        console.log('🚀 CONSTRUCTIONWIZARD V1.2 - Importando hubSpotService dinámicamente...');
+        console.log('🚀 CONSTRUCTIONWIZARD V1.3 - Creando Deal directamente...');
         
-        // Importación dinámica para evitar problemas de hoisting
-        const { hubSpotService } = await import('../services/hubspotService');
-        
-        // Verificar que el servicio esté disponible
-        if (!hubSpotService || typeof hubSpotService.createDealFromConstruction !== 'function') {
-          throw new Error('hubSpotService no está disponible');
-        }
-        
-        console.log('🚀 Creando Deal en HubSpot ANTES de BD...');
-        const hubspotResponse = await hubSpotService.createDealFromConstruction({
+        // Crear el Deal directamente sin importaciones problemáticas
+        const hubspotResponse = await createHubSpotDeal({
           name: step1Data.name,
           address: fullAddress,
           postal_code: step1Data.postal_code,
@@ -435,9 +522,8 @@ export default function ConstructionWizard({
           servicios_obra: serviciosObra,
         });
 
-        // Extraer ID del Deal - más robusto
+        // Extraer ID del Deal
         if (hubspotResponse) {
-          // En desarrollo: response.id, en producción: response.dealId
           hubspotDealId = hubspotResponse.id || hubspotResponse.dealId || null;
           if (hubspotDealId) {
             hubspotDealId = String(hubspotDealId);
