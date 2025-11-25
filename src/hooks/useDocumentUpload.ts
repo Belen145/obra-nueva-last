@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useServiceStatusTransition } from "./useServiceStatusTransition";
+import { hubSpotDocumentService } from "../services/hubspotDocumentService";
 
 interface UploadDocumentParams {
   file?: File; // Puede ser opcional si solo se sube texto
@@ -62,6 +63,33 @@ export function useDocumentUpload() {
         .select()
         .single();
       if (dbError) throw dbError;
+
+      // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
+      try {
+        console.log('🔄 Sincronizando documento con HubSpot desde useDocumentUpload...', {
+          documentId: document.id,
+          serviceId: document.service_id,
+          documentTypeId: document.document_type_id
+        });
+        
+        const syncSuccess = await hubSpotDocumentService.syncDocumentToHubSpot({
+          documentId: document.id,
+          serviceId: document.service_id,
+          documentTypeId: document.document_type_id,
+          link: link,
+          contentText: contentText
+        });
+        
+        if (syncSuccess) {
+          console.log('✅ Documento sincronizado con HubSpot desde useDocumentUpload');
+        } else {
+          console.warn('⚠️ No se pudo sincronizar con HubSpot desde useDocumentUpload (no es crítico)');
+        }
+      } catch (hubspotError) {
+        console.error('❌ Error sincronizando con HubSpot desde useDocumentUpload:', hubspotError);
+        // No bloquear el proceso si HubSpot falla
+      }
+
       // Si es resolución de incidencia, transicionar el estado
       if (isIncidenceResolution) {
         const transitionResult = await transitionToNextStatus(serviceId);

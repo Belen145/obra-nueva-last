@@ -17,6 +17,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
 import { notifyDocumentUploaded } from '../services/slackService.simple';
+import { hubSpotDocumentService } from '../services/hubspotDocumentService';
 
 export default function ServiceDocumentsCategoryPage() {
   const { showNotification } = useNotification();
@@ -194,8 +195,53 @@ export default function ServiceDocumentsCategoryPage() {
         }
       }
 
-      // Si el guardado fue exitoso, enviar notificación a Slack
+      // Si el guardado fue exitoso, enviar notificación a Slack y sincronizar con HubSpot
       if (result) {
+        // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
+        try {
+          // Para insert: usar el primer documento insertado
+          // Para update: usar el documento existente
+          let docToSync = null;
+          let serviceIdToSync = null;
+          
+          if (data && data.length > 0) {
+            // Caso INSERT: usar el primer documento creado
+            docToSync = data[0];
+            serviceIdToSync = docToSync.service_id;
+          } else if (documentId) {
+            // Caso UPDATE: usar el documento existente
+            serviceIdToSync = parseInt(serviceId!);
+            docToSync = { id: documentId };
+          }
+          
+          if (docToSync && serviceIdToSync) {
+            console.log('🔄 Sincronizando documento de texto con HubSpot...', {
+              documentId: docToSync.id,
+              serviceId: serviceIdToSync,
+              documentTypeId,
+              contentLength: value.length
+            });
+            
+            const syncSuccess = await hubSpotDocumentService.syncDocumentToHubSpot({
+              documentId: docToSync.id,
+              serviceId: serviceIdToSync,
+              documentTypeId: documentTypeId,
+              link: null,
+              contentText: value
+            });
+            
+            if (syncSuccess) {
+              console.log('✅ Documento de texto sincronizado con HubSpot exitosamente');
+            } else {
+              console.warn('⚠️ No se pudo sincronizar documento de texto con HubSpot (no es crítico)');
+            }
+          }
+        } catch (hubspotError) {
+          console.error('❌ Error sincronizando documento de texto con HubSpot:', hubspotError);
+          // No bloquear el proceso si HubSpot falla
+        }
+
+        // Slack notification
         try {
           const docType = requiredDocuments.find(doc => doc.document_type_id === documentTypeId);
           await notifyDocumentUploaded(
@@ -546,9 +592,10 @@ export default function ServiceDocumentsCategoryPage() {
         document_status_id: 3,
       }));
 
-      const { error: docError } = await supabase
+      const { error: docError, data: insertedDocs } = await supabase
         .from('documents')
-        .insert(documentsToInsert);
+        .insert(documentsToInsert)
+        .select('id, service_id, document_type_id, link');
       
       if (docError) {
         console.error('Error al guardar documento:', docError);
@@ -557,6 +604,36 @@ export default function ServiceDocumentsCategoryPage() {
             docError.message || JSON.stringify(docError)
           }`
         );
+      }
+
+      // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
+      try {
+        if (insertedDocs && insertedDocs.length > 0) {
+          // Sincronizar solo el primer documento (todos tienen los mismos datos)
+          const firstDoc = insertedDocs[0];
+          console.log('🔄 Sincronizando documento con HubSpot...', {
+            documentId: firstDoc.id,
+            serviceId: firstDoc.service_id,
+            documentTypeId: firstDoc.document_type_id
+          });
+          
+          const syncSuccess = await hubSpotDocumentService.syncDocumentToHubSpot({
+            documentId: firstDoc.id,
+            serviceId: firstDoc.service_id,
+            documentTypeId: firstDoc.document_type_id,
+            link: fileUrl,
+            contentText: null
+          });
+          
+          if (syncSuccess) {
+            console.log('✅ Documento sincronizado con HubSpot exitosamente');
+          } else {
+            console.warn('⚠️ No se pudo sincronizar con HubSpot (no es crítico)');
+          }
+        }
+      } catch (hubspotError) {
+        console.error('❌ Error sincronizando con HubSpot:', hubspotError);
+        // No bloquear el proceso si HubSpot falla
       }
       showNotification({
         type: 'success',
