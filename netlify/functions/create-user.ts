@@ -38,36 +38,52 @@ export async function handler(event: any, context: any) {
       };
     }
 
-    const { email, password, username, companyId } = JSON.parse(event.body);
-    console.log('📥 Datos recibidos:', { email, username, companyId });
+    const { email, password, companyId } = JSON.parse(event.body);
+    
+    console.log('📥 Datos recibidos:', {
+      email: email || 'No proporcionado',
+      password: password ? '✅ Proporcionado' : '❌ Falta',
+      companyId: companyId || 'No proporcionado'
+    });
 
     // Validar campos requeridos
-    if (!email || !password || !username || !companyId) {
+    if (!email || !password || !companyId) {
       console.log('❌ Faltan campos obligatorios');
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ 
-          error: 'Campos obligatorios faltantes',
-          required: ['email', 'password', 'username', 'companyId']
+          error: 'Missing required fields',
+          required: { email: !!email, password: !!password, companyId: !!companyId }
         })
       };
     }
 
     // Verificar credenciales de Supabase
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    console.log('🔍 Variables de entorno:', {
+      supabaseUrl: supabaseUrl ? '✅ Configurada' : '❌ Falta',
+      serviceRoleKey: supabaseServiceKey ? '✅ Configurada' : '❌ Falta'
+    });
+
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.log('❌ Credenciales de Supabase no configuradas');
+      console.log('❌ Configuración de Supabase no encontrada');
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Server configuration error' })
+        body: JSON.stringify({ 
+          error: 'Database configuration not found',
+          missing: {
+            supabaseUrl: !supabaseUrl,
+            serviceRoleKey: !supabaseServiceKey
+          }
+        })
       };
     }
 
-    // Crear cliente de Supabase con credenciales de admin
+    console.log('🔧 Creando cliente admin de Supabase...');
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -75,16 +91,13 @@ export async function handler(event: any, context: any) {
       }
     });
 
-    console.log('🔑 Cliente admin creado, creando usuario...');
+    console.log('👤 Creando usuario en auth...');
 
     // 1. Crear usuario en auth.users
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirmar email
-      user_metadata: {
-        username: username
-      }
+      email_confirm: true // Auto-confirmar email
     });
 
     if (authError) {
@@ -99,17 +112,22 @@ export async function handler(event: any, context: any) {
       };
     }
 
-    console.log('✅ Usuario creado en auth:', authUser.user?.id);
+    console.log('✅ Usuario creado en auth:', {
+      id: authUser.user?.id,
+      email: authUser.user?.email
+    });
 
     // 2. Crear registro en tabla users
+    console.log('💾 Creando registro en tabla users...');
+
     const { data: userRecord, error: userError } = await supabaseAdmin
       .from('users')
       .insert({
         id: authUser.user?.id,
-        username: username,
+        username: email,
         company_id: parseInt(companyId)
       })
-      .select()
+      .select('*')
       .single();
 
     if (userError) {
