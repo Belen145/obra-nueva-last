@@ -151,7 +151,8 @@ export default function CreateUserModal({
       setEmail('');
       setPassword('');
       setSelectedCompanyId(null);
-      setCompanySearchTerm('');
+      setCompanySearch('');
+      setShowCompanyDropdown(false);
       
       // Llamar callback de éxito si existe
       onSuccess?.(result.user);
@@ -177,7 +178,7 @@ export default function CreateUserModal({
       setEmail('');
       setPassword('');
       setSelectedCompanyId(null);
-      setCompanySearchTerm('');
+      setCompanySearch('');
       setShowCompanyDropdown(false);
       onClose();
     }
