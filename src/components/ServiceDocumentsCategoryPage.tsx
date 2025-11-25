@@ -106,6 +106,7 @@ export default function ServiceDocumentsCategoryPage() {
     if (!serviceId || !service) return;
     setSavingTextId(documentTypeId);
     let result = false;
+    let insertedDocuments = null; // Declarar fuera de los bloques
 
     try {
       // Obtener todos los servicios de la misma obra
@@ -176,12 +177,13 @@ export default function ServiceDocumentsCategoryPage() {
           document_status_id: 3,
         }));
 
-        const { error, data: insertedDocuments } = await supabase
+        const { error, data: newDocuments } = await supabase
           .from('documents')
           .insert(documentsToInsert)
           .select();
         
         result = !error;
+        insertedDocuments = newDocuments; // Asignar a la variable del scope superior
         
         // Actualizar el ID del documento actual
         if (insertedDocuments && insertedDocuments.length > 0) {
