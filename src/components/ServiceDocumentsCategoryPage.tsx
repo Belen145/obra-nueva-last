@@ -176,7 +176,7 @@ export default function ServiceDocumentsCategoryPage() {
           document_status_id: 3,
         }));
 
-        const { error, data } = await supabase
+        const { error, data: insertedDocuments } = await supabase
           .from('documents')
           .insert(documentsToInsert)
           .select();
@@ -184,8 +184,8 @@ export default function ServiceDocumentsCategoryPage() {
         result = !error;
         
         // Actualizar el ID del documento actual
-        if (data && data.length > 0) {
-          const currentServiceDoc = data.find(doc => doc.service_id === parseInt(serviceId!));
+        if (insertedDocuments && insertedDocuments.length > 0) {
+          const currentServiceDoc = insertedDocuments.find(doc => doc.service_id === parseInt(serviceId!));
           if (currentServiceDoc) {
             setTextDocumentIds((prev) => ({
               ...prev,
@@ -204,9 +204,9 @@ export default function ServiceDocumentsCategoryPage() {
           let docToSync = null;
           let serviceIdToSync = null;
           
-          if (data && data.length > 0) {
+          if (insertedDocuments && insertedDocuments.length > 0) {
             // Caso INSERT: usar el primer documento creado
-            docToSync = data[0];
+            docToSync = insertedDocuments[0];
             serviceIdToSync = docToSync.service_id;
           } else if (documentId) {
             // Caso UPDATE: usar el documento existente
