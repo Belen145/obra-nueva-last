@@ -406,9 +406,40 @@ export default function ConstructionWizard({
 
       console.log('✅ Construcción creada con ID:', construction.id);
 
-      // 2. AHORA INTENTAR CREAR EN HUBSPOT Y ACTUALIZAR EL ID
+      // 2. Crear servicios seleccionados usando el hook
+      const servicesToCreate = Object.entries(step3Data.selectedServices)
+        .filter(([_, service]) => service.selected)
+        .map(([serviceId, service]) => {
+          return {
+            typeIds: [Number(serviceId)],
+            comment: `Servicio de ${service.name} para ${step1Data.name}`
+          };
+        })
+        .filter(service => service.typeIds.length > 0);
+
+      let createdServices: any[] = [];
+      if (servicesToCreate.length > 0) {
+        createdServices = await createMultipleServices(
+          construction.id,
+          servicesToCreate
+        );
+        
+        console.log('📋 Servicios creados:', createdServices);
+      }
+
+      // 3. CREAR EN HUBSPOT CON TODA LA INFORMACIÓN (DESPUÉS DE SERVICIOS)
       try {
-        console.log('🚀 V1.4 - Creando Deal en HubSpot DESPUÉS de BD...');
+        console.log('🚀 V1.4 - Creando Deal en HubSpot con service IDs...');
+        
+        // Mapear service IDs por tipo para enviar a HubSpot
+        const serviceIdsByType: Record<number, number> = {};
+        createdServices.forEach(service => {
+          if (service.type_id && service.id) {
+            serviceIdsByType[service.type_id] = service.id;
+          }
+        });
+        
+        console.log('🎯 Service IDs mapeados para HubSpot:', serviceIdsByType);
         
         const hubspotResponse = await fetch('/.netlify/functions/hubspot-deals', {
           method: 'POST',
@@ -431,7 +462,8 @@ export default function ConstructionWizard({
               housing_count: parseInt(step1Data.housing_count) || 0,
               acometida: acometidaValue,
               servicios_obra: serviciosObra,
-            }
+            },
+            serviceIds: serviceIdsByType
           }),
         });
 
@@ -440,7 +472,7 @@ export default function ConstructionWizard({
           const dealId = hubspotResult.dealId;
           
           if (dealId) {
-            console.log('✅ Deal creado - actualizando BD con ID:', dealId);
+            console.log('✅ Deal creado con service IDs - actualizando BD con ID:', dealId);
             
             // Actualizar la construcción con el Deal ID
             const { error: updateError } = await supabase
@@ -466,93 +498,6 @@ export default function ConstructionWizard({
           title: 'Advertencia',
           body: 'La obra se creó correctamente, pero hubo un problema al sincronizar con HubSpot.'
         });
-      }
-
-      // 2. Crear servicios seleccionados usando el hook
-      const servicesToCreate = Object.entries(step3Data.selectedServices)
-        .filter(([_, service]) => service.selected)
-        .map(([serviceId, service]) => {
-          return {
-            typeIds: [Number(serviceId)],
-            comment: `Servicio de ${service.name} para ${step1Data.name}`
-          };
-        })
-        .filter(service => service.typeIds.length > 0);
-
-      let createdServices: any[] = [];
-      if (servicesToCreate.length > 0) {
-        createdServices = await createMultipleServices(
-          construction.id,
-          servicesToCreate
-        );
-        
-        console.log('📋 Servicios creados:', createdServices);
-        
-        // Mapear service IDs por tipo para enviar a HubSpot
-        const serviceIdsByType: Record<number, number> = {};
-        createdServices.forEach(service => {
-          if (service.type_id && service.id) {
-            serviceIdsByType[service.type_id] = service.id;
-          }
-        });
-        
-        console.log('🎯 Service IDs mapeados para HubSpot:', serviceIdsByType);
-        
-        // Actualizar HubSpot con los service IDs
-        if (Object.keys(serviceIdsByType).length > 0) {
-          try {
-            console.log('🔄 Actualizando HubSpot con service IDs...');
-            
-            const hubspotUpdateResponse = await fetch('/.netlify/functions/hubspot-deals', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                constructionData: {
-                  name: step1Data.name,
-                  address: fullAddress,
-                  postal_code: step1Data.postal_code,
-                  municipality: step1Data.municipality,
-                  responsible_name: step2Data.responsible_first_name,
-                  responsible_lastname: step2Data.responsible_last_name,
-                  responsible_phone: step2Data.responsible_phone,
-                  responsible_email: step2Data.responsible_email,
-                  company_name: step2Data.society_name,
-                  company_cif: step2Data.society_cif,
-                  fiscal_address: fullFiscalAddress,
-                  housing_count: parseInt(step1Data.housing_count) || 0,
-                  acometida: acometidaValue,
-                  servicios_obra: serviciosObra,
-                },
-                serviceIds: serviceIdsByType
-              }),
-            });
-            
-            if (hubspotUpdateResponse.ok) {
-              const hubspotUpdateResult = await hubspotUpdateResponse.json();
-              console.log('✅ HubSpot actualizado con service IDs:', hubspotUpdateResult);
-              
-              // Si tenemos un dealId del update, actualizarlo en la BD
-              if (hubspotUpdateResult.dealId && !construction.hubspot_deal_id) {
-                const { error: updateError } = await supabase
-                  .from('construction')
-                  .update({ hubspot_deal_id: String(hubspotUpdateResult.dealId) })
-                  .eq('id', construction.id);
-                
-                if (updateError) {
-                  console.error('❌ Error actualizando Deal ID:', updateError);
-                } else {
-                  console.log('✅ Deal ID actualizado tras service mapping');
-                }
-              }
-            } else {
-              console.error('❌ Error actualizando HubSpot con service IDs');
-            }
-          } catch (updateError) {
-            console.error('❌ Error en actualización de HubSpot:', updateError);
-          }
-        }
       }
 
       onSuccess(construction.id);
