@@ -85,6 +85,9 @@ export async function handler(event: any, context: any) {
         dealstage: '205747816',
         hubspot_owner_id: ownerId, // ✅ Configurable por entorno
         enviar_presupuesto: true,
+        push_doc_obra_nueva: true, // ✅ Nueva propiedad para identificar obras nuevas
+        nombre_contacto_representante: constructionData.responsible_name || '',
+        apellidos_contacto_representante: constructionData.responsible_lastname || '',
         direccion_obra: constructionData.address || '',
         codigo_postal_obra: constructionData.postal_code || '',
         municipio_obra: constructionData.municipality || '',
