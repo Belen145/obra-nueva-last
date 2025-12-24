@@ -65,7 +65,7 @@ export default function AdminDocumentManager() {
       name.toLowerCase().includes(searchLower) ||
       (construction.address && construction.address.toLowerCase().includes(searchLower)) ||
       (construction.location && construction.location.toLowerCase().includes(searchLower)) ||
-      construction.id.toLowerCase().includes(searchLower)
+      (construction.id && construction.id.toString().toLowerCase().includes(searchLower))
     );
   });
 
