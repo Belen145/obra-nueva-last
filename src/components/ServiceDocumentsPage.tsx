@@ -102,6 +102,70 @@ export default function ServiceDocumentsPage(): JSX.Element {
     }
   };
 
+  // Función para verificar si todas las categorías están completas y transicionar al estado 19
+  const checkAllCategoriesCompleteAndUpdateStatus = async () => {
+    if (!service || categories.length === 0) {
+      console.log('⏸️ No se puede verificar - service:', !!service, 'categories:', categories.length);
+      return;
+    }
+
+    // Verificar si todas las categorías están completas
+    const allCategoriesComplete = categories.every(cat => cat.porEntregar === 0);
+    
+    console.log('🔍 Verificando completitud de categorías para transición a estado 19:', {
+      totalCategories: categories.length,
+      allComplete: allCategoriesComplete,
+      currentStatusId: service.status_id,
+      serviceId: serviceId,
+      categories: categories.map(cat => ({
+        name: cat.name,
+        count: cat.count,
+        aportados: cat.aportados,
+        porEntregar: cat.porEntregar,
+        complete: cat.porEntregar === 0
+      }))
+    });
+
+    // Verificar condiciones específicas
+    if (!allCategoriesComplete) {
+      console.log('❌ No todas las categorías están completas');
+      const pendingCategories = categories.filter(cat => cat.porEntregar > 0);
+      console.log('📋 Categorías pendientes:', pendingCategories);
+      return;
+    }
+
+    if (service.status_id === 19) {
+      console.log('✅ El servicio ya está en estado 19, no necesita transición');
+      return;
+    }
+
+    try {
+      console.log('🚀 Iniciando transición automática a estado 19...');
+      
+      // Actualizar el estado del servicio al ID 19
+      const { error: updateError } = await supabase
+        .from('services')
+        .update({ 
+          status_id: 19,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', serviceId);
+
+      if (updateError) {
+        console.error('❌ Error actualizando estado a 19:', updateError);
+        return;
+      }
+
+      console.log('✅ Servicio transicionado automáticamente al estado 19');
+      
+      // Refrescar datos para mostrar el nuevo estado
+      await fetchData();
+      
+    } catch (error) {
+      console.error('❌ Error en transición automática al estado 19:', error);
+    }
+  };
+
   // Manejar selección del radio button
   const handleRadioSelection = async (selection: 'si' | 'no') => {
     if (hasSelectedRadio || isCreatingService) return; // No permitir cambios una vez seleccionado o mientras se crea
@@ -265,7 +329,14 @@ export default function ServiceDocumentsPage(): JSX.Element {
   }
 
   useEffect(() => {
-    if (serviceId) fetchData();
+    if (serviceId) {
+      fetchData().then(() => {
+        // Verificar completitud después de cargar los datos
+        setTimeout(() => {
+          checkAllCategoriesCompleteAndUpdateStatus();
+        }, 500); // Delay para asegurar que categories esté actualizado
+      });
+    }
     
     // Suscripción a cambios en tiempo real en la tabla documents
     const subscription = supabase
@@ -280,7 +351,12 @@ export default function ServiceDocumentsPage(): JSX.Element {
           console.log('📡 Cambio detectado en documents:', payload);
           // Refrescar los datos cuando haya cambios
           if (serviceId) {
-            fetchData();
+            fetchData().then(() => {
+              // Verificar completitud después de cada cambio
+              setTimeout(() => {
+                checkAllCategoriesCompleteAndUpdateStatus();
+              }, 500);
+            });
           }
         }
       )
@@ -290,7 +366,7 @@ export default function ServiceDocumentsPage(): JSX.Element {
     return () => {
       subscription.unsubscribe();
     };
-  }, [serviceId]);
+  }, [serviceId]); // Quitar categories de las dependencias
 
   if (loading) {
     return (

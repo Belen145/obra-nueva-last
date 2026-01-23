@@ -353,6 +353,123 @@ export default function ServiceDocumentsCategoryPage() {
     // eslint-disable-next-line
   }, [serviceId, category]);
 
+  // Función para verificar si todas las categorías están completas y transicionar al estado 19
+  const checkAllCategoriesCompleteAndUpdateStatus = async () => {
+    if (!service) {
+      console.log('⏸️ No se puede verificar - service no disponible');
+      return;
+    }
+
+    try {
+      // Obtener todas las categorías de documentos para verificar completitud global
+      const { data: allRequiredDocs, error: reqError } = await supabase
+        .from('service_required_document')
+        .select('id, document_type_id, documentation_type(id, category, distributor_id)')
+        .eq('service_type_id', service.type_id);
+      
+      if (reqError) throw reqError;
+
+      // Filtrar documentos requeridos aplicando la lógica de distribuidora
+      const requiredDocs = (allRequiredDocs || []).filter((doc: any) => {
+        const docType = Array.isArray(doc.documentation_type) ? doc.documentation_type[0] : doc.documentation_type;
+        const isGeneralDocument = !docType?.distributor_id;
+        const isDistributorSpecificDocument = docType?.distributor_id === service.construction?.distributor_id;
+        return isGeneralDocument || isDistributorSpecificDocument;
+      });
+
+      // Obtener todos los documentos aportados para la obra
+      const { data: allDocs, error: allDocsError } = await supabase
+        .from('documents')
+        .select('id, document_type_id, document_status_id')
+        .eq('service_id', serviceId);
+      
+      if (allDocsError) throw allDocsError;
+
+      // Agrupar por categoría
+      const categories: Record<string, { name: string; count: number; aportados: number; porEntregar: number }> = {};
+      
+      // Inicializar categorías
+      requiredDocs.forEach((doc: any) => {
+        const docType = Array.isArray(doc.documentation_type) ? doc.documentation_type[0] : doc.documentation_type;
+        const cat = docType?.category || 'Sin categoría';
+        if (!categories[cat]) {
+          categories[cat] = { name: cat, count: 0, aportados: 0, porEntregar: 0 };
+        }
+        categories[cat].count++;
+      });
+
+      // Contar aportados
+      requiredDocs.forEach((reqDoc: any) => {
+        const docType = Array.isArray(reqDoc.documentation_type) ? reqDoc.documentation_type[0] : reqDoc.documentation_type;
+        const cat = docType?.category || 'Sin categoría';
+        const aportado = (allDocs || []).some(
+          (doc: any) => doc.document_type_id === reqDoc.document_type_id && doc.document_status_id === 3
+        );
+        if (categories[cat] && aportado) {
+          categories[cat].aportados++;
+        }
+      });
+
+      // Calcular pendientes
+      Object.values(categories).forEach((cat) => {
+        cat.porEntregar = cat.count - cat.aportados;
+      });
+
+      const categoriesArray = Object.values(categories);
+      const allCategoriesComplete = categoriesArray.every(cat => cat.porEntregar === 0);
+
+      console.log('🔍 [CategoryPage] Verificando completitud para transición a estado 19:', {
+        totalCategories: categoriesArray.length,
+        allComplete: allCategoriesComplete,
+        currentStatusId: service.status_id,
+        serviceId: serviceId,
+        categories: categoriesArray.map(cat => ({
+          name: cat.name,
+          count: cat.count,
+          aportados: cat.aportados,
+          porEntregar: cat.porEntregar,
+          complete: cat.porEntregar === 0
+        }))
+      });
+
+      if (!allCategoriesComplete) {
+        console.log('❌ [CategoryPage] No todas las categorías están completas');
+        const pendingCategories = categoriesArray.filter(cat => cat.porEntregar > 0);
+        console.log('📋 [CategoryPage] Categorías pendientes:', pendingCategories);
+        return;
+      }
+
+      if (service.status_id === 19) {
+        console.log('✅ [CategoryPage] El servicio ya está en estado 19');
+        return;
+      }
+
+      console.log('🚀 [CategoryPage] ¡Todos los documentos completos! Transicionando al estado 19...');
+      
+      // Actualizar el estado del servicio al ID 19
+      const { error: updateError } = await supabase
+        .from('services')
+        .update({ 
+          status_id: 19,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', serviceId);
+
+      if (updateError) {
+        console.error('❌ [CategoryPage] Error actualizando estado a 19:', updateError);
+        return;
+      }
+
+      console.log('✅ [CategoryPage] Servicio transicionado automáticamente al estado 19');
+      
+      // Actualizar datos locales
+      setService(prev => prev ? { ...prev, status_id: 19 } : prev);
+      
+    } catch (error) {
+      console.error('❌ [CategoryPage] Error en verificación de completitud:', error);
+    }
+  };
+
   const fetchServiceData = async () => {
     setLoading(true);
     setError(null);
@@ -699,7 +816,15 @@ export default function ServiceDocumentsCategoryPage() {
           selectedFile: null,
         },
       }));
+      
+      console.log('🔄 Actualizando datos del servicio después de subir documento...');
       fetchServiceData();
+      
+      // Verificar completitud después de actualizar los datos
+      setTimeout(() => {
+        checkAllCategoriesCompleteAndUpdateStatus();
+      }, 1000);
+      
       trackEvent('Document Uploaded', {
         page_title: 'Documentos de la categoría',
         new_construction_id: service?.construction?.name || '',
