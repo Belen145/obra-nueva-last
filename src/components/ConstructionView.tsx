@@ -965,7 +965,7 @@ export default function ConstructionView() {
             Obra de construcción
           </h2>
            <p className="text-[19px] font-normal text-zen-grey-700 leading-[1.35] w-[464.5px]">
-            Gestiona y consulta todos tus proyectos de construcción prueba
+            Gestiona y consulta todos tus proyectos de construcción
           </p>
         </div>
         <button
