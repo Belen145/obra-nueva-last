@@ -75,7 +75,8 @@ export async function handler(event: any, context: any) {
       4: 'final_water_service_id',
       5: 'pci_water_service_id',
       6: 'construction_telecom_service_id',
-      7: 'construction_gas_service_id'
+      7: 'new_gas_connection_service_id',
+      8: 'gas_capping_service_id'
     };
 
     // Crear deal en HubSpot con todos los campos
