@@ -38,7 +38,6 @@ import { trackEvent } from '../lib/amplitude';
  * Permite filtrar, buscar, expandir y gestionar servicios asociados a cada obra.
  */
 export default function ConstructionView() {
-  console.log('🏗️ ConstructionView: Component rendering...');
   const navigate = useNavigate();
   // Opciones de estado para el filtro
   const statusOptions = [
@@ -56,25 +55,6 @@ export default function ConstructionView() {
   );
   const { getServices, getServicesCacheState, clearCache } = useServicesCache();
   
-  // Debug logs
-  useEffect(() => {
-    console.log('ConstructionView: Auth state ->', { 
-      isAdmin, 
-      companyId, 
-      authLoading,
-      passedToHook: isAdmin ? null : companyId
-    });
-  }, [isAdmin, companyId, authLoading]);
-
-  // Agregar log cada vez que cambie algún estado del hook useConstructions
-  useEffect(() => {
-    console.log('ConstructionView: Constructions state ->', {
-      loading,
-      error,
-      constructionsCount: constructions.length
-    });
-  }, [loading, error, constructions.length]);
-  
   // Estados locales
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -83,6 +63,11 @@ export default function ConstructionView() {
   const [expandedConstruction, setExpandedConstruction] = useState<
     number | null
   >(null);
+  const [serviceTypeStatuses, setServiceTypeStatuses] = useState<any[]>([]);
+  const [statusesLoading, setStatusesLoading] = useState<boolean>(false);
+  // Usar useRef para evitar recargas cuando se cambia de pestaña
+  const loadingServicesRef = useRef<Set<number>>(new Set());
+  const lastLoadTimeRef = useRef<Map<number, number>>(new Map());
   const [clientManagementWizard, setClientManagementWizard] = useState<{
     isOpen: boolean;
     service: any;
@@ -239,24 +224,37 @@ export default function ConstructionView() {
   const toggleConstructionExpansion = async (constructionId: number) => {
     if (expandedConstruction === constructionId) {
       setExpandedConstruction(null);
-    } else {
-      setExpandedConstruction(constructionId);
-      // Cargar servicios cuando se expande
-      const services = await getServices(constructionId);
-      console.log(
-        '📋 Services loaded for construction',
-        constructionId,
-        ':',
-        services
-      );
+      return;
+    }
+
+    setExpandedConstruction(constructionId);
+    
+    // Verificar si ya se cargaron recientemente (menos de 30 segundos)
+    const lastLoadTime = lastLoadTimeRef.current.get(constructionId) || 0;
+    const now = Date.now();
+    const isRecentlyLoaded = now - lastLoadTime < 30000; // 30 segundos
+    
+    // Verificar si ya están en caché
+    const cacheState = getServicesCacheState(constructionId);
+    const hasValidCache = cacheState.loaded && cacheState.data.length >= 0;
+    
+    // Solo cargar si no están en caché, no se cargaron recientemente, y no están cargando
+    if (!hasValidCache && !isRecentlyLoaded && !loadingServicesRef.current.has(constructionId)) {
+      loadingServicesRef.current.add(constructionId);
+      lastLoadTimeRef.current.set(constructionId, now);
+      
+      try {
+        await getServices(constructionId);
+      } finally {
+        loadingServicesRef.current.delete(constructionId);
+      }
     }
 
     // Track page view en Amplitude
-      trackEvent('Open Details Button Pressed', {
-        page_title: 'Tabla principal obras',
-        new_construction_id: constructionId
-      })
-    
+    trackEvent('Open Details Button Pressed', {
+      page_title: 'Tabla principal obras',
+      new_construction_id: constructionId
+    });
   };
 
   /**
@@ -267,6 +265,8 @@ export default function ConstructionView() {
     const [openMenuServiceId, setOpenMenuServiceId] = useState<number | null>(
       null
     );
+    const statusesFetchedRef = useRef<Set<number>>(new Set());
+    
     // Cerrar el menú si se hace click fuera
     useEffect(() => {
       const handleClick = () => setOpenMenuServiceId(null);
@@ -421,21 +421,12 @@ export default function ConstructionView() {
       loading: servicesLoading,
       error: servicesError,
     } = cacheState;
-    const [serviceTypeStatuses, setServiceTypeStatuses] = useState<any[]>([]);
-    const [statusesLoading, setStatusesLoading] = useState<boolean>(false);
 
     // Verificar si algún servicio está en estado de incidencia
 
     if (expandedConstruction !== constructionId) return null;
 
-    // Si no hay caché cargado y no está cargando, forzar carga
-    if (
-      !cacheState.loaded &&
-      !servicesLoading &&
-      expandedConstruction === constructionId
-    ) {
-      getServices(constructionId);
-    }
+    // Los servicios se cargan desde toggleConstructionExpansion, no aquí
 
     // Cargar estados de servicio cuando se expande
     useEffect(() => {
@@ -451,8 +442,14 @@ export default function ConstructionView() {
      * Carga los posibles estados de los tipos de servicio desde la base de datos.
      */
     const fetchServiceTypeStatuses = async () => {
+      // Solo cargar si no se han cargado ya para este servicio
+      if (statusesFetchedRef.current.has(constructionId)) {
+        return;
+      }
+      
       try {
         setStatusesLoading(true);
+        statusesFetchedRef.current.add(constructionId);
         const { data, error } = await supabase
           .from('service_type_status')
           .select(

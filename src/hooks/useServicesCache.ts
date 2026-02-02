@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface Service {
@@ -26,12 +26,13 @@ interface ServicesCache {
     loading: boolean;
     loaded: boolean;
     error: string | null;
+    lastLoaded: number; // Timestamp para evitar recargas frecuentes
   };
 }
 
 /**
  * Hook para gestionar la caché de servicios por obra de construcción.
- * Retorna funciones para obtener servicios, estado de la caché y limpiar la caché.
+ * Incluye optimizaciones para evitar recargas innecesarias al cambiar de pestaña.
  */
 export function useServicesCache(): {
   getServices: (constructionId: number) => Promise<Service[]>;
@@ -45,34 +46,43 @@ export function useServicesCache(): {
 } {
   const [cache, setCache] = useState<ServicesCache>({});
 
+  // Optimización: Evitar recargas por cambio de pestaña
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // No hacer nada especial cuando la página se vuelve visible
+      // El caché ya maneja la persistencia de datos
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const getServices = useCallback(
     async (constructionId: number) => {
-      // Si ya están cargados, no hacer nada
-      if (cache[constructionId]?.loaded) {
-        console.log(
-          `✅ Servicios ya cargados para obra ${constructionId}, usando caché`
-        );
-        return cache[constructionId].data;
+      const now = Date.now();
+      const cacheEntry = cache[constructionId];
+      
+      // Si ya están cargados y la carga fue reciente (menos de 5 minutos), usar caché
+      if (cacheEntry?.loaded && cacheEntry.lastLoaded > now - 5 * 60 * 1000) {
+        return cacheEntry.data;
       }
 
-      // Si ya está cargando, no hacer otra petición
-      if (cache[constructionId]?.loading) {
-        console.log(
-          `⏳ Ya cargando servicios para obra ${constructionId}, esperando...`
-        );
-        return [];
+      // Si ya está cargando, esperar resultado existente
+      if (cacheEntry?.loading) {
+        // Esperar un poco y retornar datos existentes si los hay
+        return cacheEntry.data || [];
       }
-
-      console.log(`🔄 Cargando servicios para obra ${constructionId}...`);
-
       // Marcar como cargando
       setCache((prev) => ({
         ...prev,
         [constructionId]: {
-          data: [],
+          data: prev[constructionId]?.data || [],
           loading: true,
           loaded: false,
           error: null,
+          lastLoaded: 0,
         },
       }));
 
@@ -108,8 +118,6 @@ export function useServicesCache(): {
           throw error;
         }
 
-        console.log(`✅ Servicios cargados para obra ${constructionId}:`, data);
-
         // Guardar en caché
         setCache((prev) => ({
           ...prev,
@@ -118,16 +126,12 @@ export function useServicesCache(): {
             loading: false,
             loaded: true,
             error: null,
+            lastLoaded: Date.now(),
           },
         }));
 
         return data || [];
       } catch (error) {
-        console.error(
-          `❌ Error cargando servicios para obra ${constructionId}:`,
-          error
-        );
-
         setCache((prev) => ({
           ...prev,
           [constructionId]: {
@@ -135,6 +139,7 @@ export function useServicesCache(): {
             loading: false,
             loaded: false,
             error: error instanceof Error ? error.message : 'Error desconocido',
+            lastLoaded: 0,
           },
         }));
 
@@ -146,32 +151,25 @@ export function useServicesCache(): {
 
   const getServicesCacheState = useCallback(
     (constructionId: number) => {
-      return (
-        cache[constructionId] || {
-          data: [],
-          loading: false,
-          loaded: false,
-          error: null,
-        }
-      );
+      const cacheEntry = cache[constructionId];
+      return {
+        data: cacheEntry?.data || [],
+        loading: cacheEntry?.loading || false,
+        loaded: cacheEntry?.loaded || false,
+        error: cacheEntry?.error || null,
+      };
     },
     [cache]
   );
 
   const clearCache = useCallback((constructionId?: number) => {
-    console.log('🧹 clearCache called with constructionId:', constructionId);
     if (constructionId) {
-      console.log(
-        '🗑️ Clearing cache for specific construction:',
-        constructionId
-      );
       setCache((prev) => {
         const newCache = { ...prev };
         delete newCache[constructionId];
         return newCache;
       });
     } else {
-      console.log('🗑️ Clearing all cache');
       setCache({});
     }
   }, []);

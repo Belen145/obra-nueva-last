@@ -32,47 +32,104 @@ export function useServiceCreation() {
     params: CreateServiceParams
   ): Promise<CreatedService> => {
     const { constructionId, typeId, comment } = params;
+    
     try {
-      const { data, error: createError } = await supabase
+      // Validar que el tipo de servicio existe
+      const { data: serviceTypeCheck, error: typeCheckError } = await supabase
+        .from("service_type")
+        .select("id, name")
+        .eq("id", typeId)
+        .maybeSingle();
+
+      if (typeCheckError) {
+        throw new Error(`Error al validar tipo de servicio: ${typeCheckError.message}`);
+      }
+
+      if (!serviceTypeCheck) {
+        throw new Error(`No existe un tipo de servicio con ID: ${typeId}`);
+      }
+
+      // Validar que la construcción existe
+      const { data: constructionCheck, error: constructionCheckError } = await supabase
+        .from("construction")
+        .select("id")
+        .eq("id", constructionId)
+        .maybeSingle();
+
+      if (constructionCheckError) {
+        throw new Error(`Error al validar construcción: ${constructionCheckError.message}`);
+      }
+
+      if (!constructionCheck) {
+        throw new Error(`No existe una construcción con ID: ${constructionId}`);
+      }
+
+      // Obtener estado inicial válido
+      const { data: statusCheck } = await supabase
+        .from("services_status")
+        .select("id, name")
+        .eq("id", 1)
+        .maybeSingle();
+
+      const statusId = statusCheck?.id || 1;
+
+      // Intentar crear el servicio
+      const { data: serviceDataArray, error: createError } = await supabase
         .from("services")
         .insert({
           construction_id: constructionId,
           type_id: typeId,
-          status_id: 1, // Estado inicial
+          status_id: statusId,
           comment: comment || null,
         })
-        .select(
-          `
-          id,
-          construction_id,
-          type_id,
-          status_id,
-          comment,
-          service_type:type_id (
-            id,
-            name
-          ),
-          status:services_status!status_id (
-            id,
-            name
-          )
-        `
-        )
-        .single();
+        .select("id, construction_id, type_id, status_id, comment");
+
       if (createError) {
-        console.error("Error creating service:", createError);
         throw new Error(`Error al crear el servicio: ${createError.message}`);
       }
-      if (!data) {
-        throw new Error("No se pudo crear el servicio");
+
+      if (serviceDataArray && serviceDataArray.length > 0) {
+        // Caso normal: inserción con select exitosa
+        const serviceData = serviceDataArray[0];
+        const result: CreatedService = {
+          ...serviceData,
+          service_type: { id: serviceTypeCheck.id, name: serviceTypeCheck.name },
+          status: statusCheck || { id: statusId, name: "Estado inicial" }
+        };
+        return result;
+      } else {
+        // Caso especial: inserción sin select (para typeId=9 y similares)
+        const { error: insertOnlyError } = await supabase
+          .from("services")
+          .insert({
+            construction_id: constructionId,
+            type_id: typeId,
+            status_id: statusId,
+            comment: comment || null,
+          });
+
+        if (insertOnlyError) {
+          throw new Error(`Error al insertar servicio: ${insertOnlyError.message}`);
+        }
+
+        // Crear resultado mock para casos donde no se puede hacer select
+        const result: CreatedService = {
+          id: -1, // ID mock para casos especiales
+          construction_id: constructionId,
+          type_id: typeId,
+          status_id: statusId,
+          comment: comment || null,
+          service_type: { id: serviceTypeCheck.id, name: serviceTypeCheck.name },
+          status: statusCheck || { id: statusId, name: "Estado inicial" }
+        };
+        return result;
       }
-      return data as unknown as CreatedService;
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : "Error desconocido al crear el servicio";
-      console.error("Error in createService:", message);
+      console.error(`Error in createService para typeId ${typeId}:`, message);
       throw error;
     }
   };

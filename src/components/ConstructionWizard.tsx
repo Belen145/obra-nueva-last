@@ -5,8 +5,10 @@ import {
 import { supabase } from '../lib/supabase';
 import { useConstructionData } from '../hooks/useConstructionData';
 import { useServiceCreation } from '../hooks/useServiceCreation';
+import { useServiceGroups } from '../hooks/useServiceGroups';
 import { useNotification } from '../contexts/NotificationContext';
 import { trackEvent } from '../lib/amplitude';
+import { GroupServiceSelector } from './GroupServiceSelector';
 
 interface ConstructionWizardProps {
   onClose: () => void;
@@ -48,6 +50,13 @@ interface Step3Data {
       name: string;
     };
   };
+  selectedGroups: {
+    [groupId: string]: {
+      selected: boolean;
+      selectedServiceTypeId: number;
+      name: string;
+    };
+  };
 }
 
 /**
@@ -68,6 +77,7 @@ export default function ConstructionWizard({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const { statuses, companies } = useConstructionData();
   const { createMultipleServices } = useServiceCreation();
+  const { serviceGroups, individualServices, loading: loadingGroups } = useServiceGroups();
   const { showNotification } = useNotification();
 
   // Estado para datos del paso 1 (obra)
@@ -103,65 +113,41 @@ export default function ConstructionWizard({
   // Estado para datos del paso 3 (servicios)
   const [step3Data, setStep3Data] = useState<Step3Data>({
     selectedServices: {},
+    selectedGroups: {},
   });
 
-  // Estados para los tipos de servicio
-  const [serviceTypes, setServiceTypes] = useState<Array<{id: number, name: string, servicio: string, acometida: string}>>([]);
-  const [loadingServiceTypes, setLoadingServiceTypes] = useState(true);
+  // Estados para los tipos de servicio (ahora derivados de useServiceGroups)
+  const loadingServiceTypes = loadingGroups;
 
-  // Cargar tipos de servicio al montar el componente
+  // Actualizar estado cuando cambien los datos de agrupación
   useEffect(() => {
-    const fetchServiceTypes = async () => {
-      try {
-        console.log('🔍 Cargando tipos de servicio...');
-        
-        // Obtener name (para mostrar), Servicio y Acometida (para HubSpot)
-        const { data, error } = await supabase
-          .from('service_type')
-          .select('id, name, Servicio, Acometida')
-          .order('name');
+    if (!loadingGroups) {
+      // Inicializar selectedServices para servicios individuales
+      const initialServices = individualServices.reduce((acc, service) => {
+        acc[service.id] = {
+          selected: false,
+          name: service.name
+        };
+        return acc;
+      }, {} as Step3Data['selectedServices']);
 
-        console.log('📥 Resultado consulta:', { data, error });
+      // Inicializar selectedGroups
+      const initialGroups = serviceGroups.reduce((acc, group) => {
+        acc[group.id] = {
+          selected: false,
+          selectedServiceTypeId: group.service_types[0]?.id || 0,
+          name: group.name
+        };
+        return acc;
+      }, {} as Step3Data['selectedGroups']);
 
-        if (error) throw error;
-        
-        // Normalizar los datos: usar 'name' para mostrar, mantener Servicio y Acometida para HubSpot
-        const normalizedData = data?.map(item => ({
-          id: item.id,
-          name: item.name || 'Servicio sin nombre', // Para mostrar en cards
-          servicio: item.Servicio || '', // Para servicios_obra en HubSpot
-          acometida: item.Acometida || '' // Para acometida en HubSpot
-        })) || [];
-
-        console.log('✅ Datos normalizados:', normalizedData);
-        setServiceTypes(normalizedData);
-
-        // Initialize selectedServices state with the fetched services
-        const initialServices = normalizedData.reduce((acc, service) => {
-          acc[service.id] = {
-            selected: false,
-            name: service.name // Usar name para mostrar
-          };
-          return acc;
-        }, {} as Step3Data['selectedServices']);
-
-        console.log('📝 InitialServices generados:', initialServices);
-
-        setStep3Data(prev => ({
-          ...prev,
-          selectedServices: initialServices
-        }));
-        
-        console.log('✅ Carga completada exitosamente');
-      } catch (err) {
-        console.error('❌ Error al cargar tipos de servicio:', err);
-      } finally {
-        setLoadingServiceTypes(false);
-      }
-    };
-
-    fetchServiceTypes();
-  }, []);
+      setStep3Data(prev => ({
+        ...prev,
+        selectedServices: initialServices,
+        selectedGroups: initialGroups
+      }));
+    }
+  }, [serviceGroups, individualServices, loadingGroups]);
 
   // Service labels are now dynamic from the database
 
@@ -212,6 +198,41 @@ export default function ConstructionWizard({
   };
 
   /**
+   * Maneja la selección/deselección de un grupo de servicios.
+   */
+  const handleGroupToggle = (groupId: number) => {
+    const groupKey = groupId.toString();
+    setStep3Data((prev: Step3Data) => ({
+      ...prev,
+      selectedGroups: {
+        ...prev.selectedGroups,
+        [groupKey]: {
+          ...prev.selectedGroups[groupKey],
+          selected: !prev.selectedGroups[groupKey]?.selected,
+        },
+      },
+    }));
+  };
+
+  /**
+   * Cambia el tipo de servicio seleccionado dentro de un grupo.
+   */
+  const handleGroupServiceTypeChange = (groupId: number, serviceTypeId: number) => {
+    const groupKey = groupId.toString();
+    setStep3Data((prev: Step3Data) => ({
+      ...prev,
+      selectedGroups: {
+        ...prev.selectedGroups,
+        [groupKey]: {
+          ...prev.selectedGroups[groupKey],
+          selectedServiceTypeId: serviceTypeId,
+          selected: true, // Auto-seleccionar el grupo al cambiar tipo
+        },
+      },
+    }));
+  };
+
+  /**
    * Valida los campos obligatorios del paso 1.
    */
   const validateStep1 = (): boolean => {
@@ -242,13 +263,16 @@ export default function ConstructionWizard({
   };
 
   /**
-   * Valida que haya al menos un servicio seleccionado y con tipo.
+   * Valida que haya al menos un servicio seleccionado (individual o grupo).
    */
   const validateStep3 = (): boolean => {
     const selectedServices = Object.entries(step3Data.selectedServices).filter(
       ([_k, service]) => service.selected
     );
-    return selectedServices.length > 0;
+    const selectedGroups = Object.entries(step3Data.selectedGroups).filter(
+      ([_k, group]) => group.selected
+    );
+    return selectedServices.length > 0 || selectedGroups.length > 0;
   };
 
   const handleNext = () => {
@@ -353,12 +377,25 @@ export default function ConstructionWizard({
         `${step2Data.responsible_first_name} ${step2Data.responsible_last_name}`.trim();
 
       // Calcular valor de acometida basado en servicios seleccionados
-      const selectedServiceIds = Object.entries(step3Data.selectedServices)
+      // Recopilar IDs de servicios seleccionados (individuales + grupos)
+      const selectedIndividualServiceIds = Object.entries(step3Data.selectedServices)
         .filter(([_, service]) => service.selected)
         .map(([serviceId]) => Number(serviceId));
 
-      const selectedServiceData = serviceTypes.filter(st => 
-        selectedServiceIds.includes(st.id)
+      const selectedGroupServiceIds = Object.entries(step3Data.selectedGroups)
+        .filter(([_, group]) => group.selected)
+        .map(([_, group]) => group.selectedServiceTypeId);
+
+      const allSelectedServiceIds = [...selectedIndividualServiceIds, ...selectedGroupServiceIds];
+
+      // Crear array combinado de todos los servicios disponibles
+      const allAvailableServices = [
+        ...individualServices,
+        ...serviceGroups.flatMap(group => group.service_types)
+      ];
+
+      const selectedServiceData = allAvailableServices.filter(st => 
+        allSelectedServiceIds.includes(st.id)
       );
 
       const acometidaTypes = [...new Set(selectedServiceData.map(s => s.acometida))];
@@ -374,8 +411,6 @@ export default function ConstructionWizard({
 
       // Calcular servicios_obra: valores únicos de la columna Servicio
       const serviciosObra = [...new Set(selectedServiceData.map(s => s.servicio))].filter(Boolean);
-      
-      console.log('📋 Servicios calculados:', { acometidaValue, serviciosObra });
 
       // 1. CREAR OBRA PRIMERO EN BASE DE DATOS (SIN HUBSPOT)
       const defaultStatus =
@@ -407,15 +442,36 @@ export default function ConstructionWizard({
       console.log('✅ Construcción creada con ID:', construction.id);
 
       // 2. Crear servicios seleccionados usando el hook
-      const servicesToCreate = Object.entries(step3Data.selectedServices)
+      // Combinar servicios individuales y servicios de grupos seleccionados
+      const individualServicesToCreate = Object.entries(step3Data.selectedServices)
         .filter(([_, service]) => service.selected)
         .map(([serviceId, service]) => {
+          const serviceTypeId = Number(serviceId);
           return {
-            typeIds: [Number(serviceId)],
+            typeIds: [serviceTypeId],
             comment: `Servicio de ${service.name} para ${step1Data.name}`
           };
-        })
+        });
+
+      const groupServicesToCreate = Object.entries(step3Data.selectedGroups)
+        .filter(([_, group]) => group.selected)
+        .map(([groupId, group]) => {
+          // Buscar el tipo de servicio en todos los servicios disponibles
+          const allAvailableServices = [
+            ...individualServices,
+            ...serviceGroups.flatMap(group => group.service_types)
+          ];
+          const serviceType = allAvailableServices.find(st => st.id === group.selectedServiceTypeId);
+          return {
+            typeIds: [group.selectedServiceTypeId],
+            comment: `Servicio de ${serviceType?.name || 'grupo'} para ${step1Data.name}`
+          };
+        });
+
+      const servicesToCreate = [...individualServicesToCreate, ...groupServicesToCreate]
         .filter(service => service.typeIds.length > 0);
+
+      console.log('📋 Servicios a crear:', servicesToCreate);
 
       let createdServices: any[] = [];
       if (servicesToCreate.length > 0) {
@@ -882,27 +938,42 @@ export default function ConstructionWizard({
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="flex flex-col gap-4 w-full">
-      {/* Label */}
-      <div className="font-['Figtree',sans-serif] font-semibold text-[16px] leading-[1.47] text-zen-grey-950">
-        Escoge los suministros<span className="text-zen-blue-500">*</span>
-      </div>
+  const renderStep3 = () => {
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        {/* Label */}
+        <div className="font-['Figtree',sans-serif] font-semibold text-[16px] leading-[1.47] text-zen-grey-950">
+          Escoge los suministros<span className="text-zen-blue-500">*</span>
+        </div>
 
-      {loadingServiceTypes ? (
-        <div className="text-center py-4">
-          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-2 text-gray-600">Cargando servicios disponibles...</p>
-        </div>
-      ) : Object.keys(step3Data.selectedServices).length === 0 ? (
-        <div className="text-center py-4">
-          <p className="text-gray-600">No hay servicios disponibles</p>
-        </div>
-      ) : (
+        {loadingServiceTypes ? (
+          <div className="text-center py-4">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-2 text-gray-600">Cargando servicios disponibles...</p>
+          </div>
+        ) : (serviceGroups.length === 0 && Object.keys(step3Data.selectedServices).length === 0) ? (
+          <div className="text-center py-4">
+            <p className="text-gray-600">No hay servicios disponibles</p>
+          </div>
+        ) : (
         <div className="flex flex-wrap gap-4 w-full">
+          {/* Renderizar grupos de servicios */}
+          {serviceGroups.map((group) => (
+            <GroupServiceSelector
+              key={`group-${group.id}`}
+              group={group}
+              selectedServiceId={step3Data.selectedGroups[group.id]?.selectedServiceTypeId}
+              isSelected={step3Data.selectedGroups[group.id]?.selected || false}
+              onToggleGroup={handleGroupToggle}
+              onServiceTypeChange={handleGroupServiceTypeChange}
+              getIconByServiceName={getIconByServiceName}
+            />
+          ))}
+
+          {/* Renderizar servicios individuales */}
           {Object.entries(step3Data.selectedServices).map(([serviceId, service]) => (
             <button
-              key={serviceId}
+              key={`service-${serviceId}`}
               onClick={() => {
                 handleServiceChange(serviceId, 'selected', !service.selected)
                 trackEvent('Service Pressed', {page_tittle: 'Modal Crear Nueva Obra', service_type: service.name, flow_creation_step: 3});
@@ -922,9 +993,6 @@ export default function ConstructionWizard({
                 }`} viewBox="0 0 16 16" fill="currentColor">
                   <use href={getIconByServiceName(service.name)} />
                 </svg>
-                {/* <Building className={`w-4 h-4 ${
-                  service.selected ? 'text-white' : 'text-zen-grey-600'
-                }`} /> */}
               </div>
 
               {/* Content */}
@@ -944,6 +1012,7 @@ export default function ConstructionWizard({
       )}
     </div>
   );
+};
 
   // Helper function para obtener descripciones de servicios
   const getServiceDescription = (serviceName: string): string => {

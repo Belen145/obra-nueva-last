@@ -33,7 +33,6 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
     try {
       setLoading(true);
       setError(null);
-      console.log('🏗️ Fetching constructions with companyId:', companyId);
 
       let query = supabase
         .from("construction")
