@@ -8,6 +8,7 @@ import UploadView from './components/UploadView';
 import SearchView from './components/SearchView';
 import ServiceDocumentsPage from './components/ServiceDocumentsPage';
 import ServiceDocumentsCategoryPage from './components/ServiceDocumentsCategoryPage';
+import ServiceDetailPage from './components/ServiceDetailPage';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Login from './components/Login';
 import { CookieConsent } from './components/CookieConsent';
@@ -65,6 +66,10 @@ function App() {
               <Route path="/constructions" element={<ConstructionView />} />
               <Route path="/login" element={<Login />} />
               <Route path="/admin" element={<AdminDocumentManager />} />
+              <Route
+                path="/detail/:serviceId"
+                element={<ServiceDetailPage />}
+              />
               <Route
                 path="/servicios/:serviceId/documentos"
                 element={<ServiceDocumentsPage />}

@@ -2,24 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
-  MapPin,
-  Calendar,
-  User,
   Plus,
-  Search,
-  ListFilter as Filter,
-  CreditCard as Edit,
   Eye,
-  MoreVertical,
   CircleCheck as CheckCircle,
-  Clock,
-  CircleAlert as AlertCircle,
   Circle as XCircle,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Settings,
-  Check,
 } from 'lucide-react';
 import { useConstructions } from '../hooks/useConstructions';
 import { useServicesCache } from '../hooks/useServicesCache';
@@ -64,7 +50,7 @@ export default function ConstructionView() {
     number | null
   >(null);
   const [serviceTypeStatuses, setServiceTypeStatuses] = useState<any[]>([]);
-  const [statusesLoading, setStatusesLoading] = useState<boolean>(false);
+  const [, setStatusesLoading] = useState<boolean>(false);
   // Usar useRef para evitar recargas cuando se cambia de pestaña
   const loadingServicesRef = useRef<Set<number>>(new Set());
   const lastLoadTimeRef = useRef<Map<number, number>>(new Map());
@@ -79,6 +65,7 @@ export default function ConstructionView() {
   const [showIncidenceModal, setShowIncidenceModal] = useState<{
     isOpen: boolean;
     service: any;
+    construction?: { id: number; name: string };
   } | null>(null);
 
   const [showDocumentUploadModal, setShowDocumentUploadModal] = useState<{
@@ -89,6 +76,7 @@ export default function ConstructionView() {
     any[]
   >([]);
   const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+  const [openServiceMenu, setOpenServiceMenu] = useState<number | null>(null);
 
   // Track page view en Amplitude
   useEffect(() => {
@@ -139,60 +127,33 @@ export default function ConstructionView() {
     };
   }, [isStatusDropdownOpen]);
 
+  // Cerrar menú de servicios al hacer click fuera
+  useEffect(() => {
+    if (openServiceMenu === null) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-service-menu]')) {
+        setOpenServiceMenu(null);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openServiceMenu]);
+
   // ...existing code...
 
   // Renderizado principal
   // (el return principal está al final del archivo, no aquí)
 
-  // Helpers de estado visual para mostrar iconos y colores según el estado
-  /**
-   * Devuelve el icono correspondiente al estado de la obra.
-   */
-  const getStatusIcon = (statusName: string) => {
-    switch (statusName?.toLowerCase()) {
-      case 'completado':
-      case 'terminado':
-      case 'finalizado':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'en progreso':
-      case 'en proceso':
-      case 'activo':
-        return <Clock className="w-5 h-5 text-blue-500" />;
-      case 'planificado':
-      case 'programado':
-        return <Calendar className="w-5 h-5 text-yellow-500" />;
-      case 'suspendido':
-      case 'pausado':
-      case 'detenido':
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-500" />;
-    }
-  };
-  /**
-   * Devuelve la clase de color para el badge del estado.
-   */
-  const getStatusColor = (statusName: string) => {
-    switch (statusName?.toLowerCase()) {
-      case 'completado':
-      case 'terminado':
-      case 'finalizado':
-        return 'bg-green-100 text-green-800';
-      case 'en progreso':
-      case 'en proceso':
-      case 'activo':
-        return 'bg-blue-100 text-blue-800';
-      case 'planificado':
-      case 'programado':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'suspendido':
-      case 'pausado':
-      case 'detenido':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+
   // Filtrado de obras según búsqueda y estado
   const filteredConstructions = constructions.filter((construction: any) => {
     const matchesSearch =
@@ -206,17 +167,7 @@ export default function ConstructionView() {
       construction.construction_status?.name === statusFilter;
     return matchesSearch && matchesStatus;
   });
-  /**
-   * Formatea una fecha a formato legible en español.
-   */
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'No definida';
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+
 
   /**
    * Expande o colapsa la fila de servicios de una obra y carga los servicios si es necesario.
@@ -258,163 +209,11 @@ export default function ConstructionView() {
   };
 
   /**
-   * Fila expandible que muestra los servicios asociados a una obra.
+   * Fila expandible que muestra los servicios asociados a una obra en formato tabla.
    */
   const ServiceRow = ({ constructionId, construction }: { constructionId: number; construction: any }) => {
-    // Estado para controlar el menú de acciones de cada servicio
-    const [openMenuServiceId, setOpenMenuServiceId] = useState<number | null>(
-      null
-    );
     const statusesFetchedRef = useRef<Set<number>>(new Set());
-    
-    // Cerrar el menú si se hace click fuera
-    useEffect(() => {
-      const handleClick = () => setOpenMenuServiceId(null);
-      if (openMenuServiceId !== null) {
-        window.addEventListener('click', handleClick);
-        return () => window.removeEventListener('click', handleClick);
-      }
-    }, [openMenuServiceId]);
-    // Renderiza el bloque de comentarios según el status
-    const renderServiceComments = (service: any) => {
-      // Banner gris informativo para estados finales
-      if (service.services_status?.is_final === true) {
-        return (
-          <div className="bg-zen-grey-100 border border-zen-grey-300 rounded p-3 flex gap-2">
-            <svg className="w-4 h-4 text-zen-grey-400 shrink-0 mt-0.5" viewBox="0 0 13 13" fill="currentColor">
-              <use href="/icons.svg#info" />
-            </svg>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-zen-grey-700">
-                Has eliminado este suministro
-              </p>
-              <p className="text-sm text-zen-grey-700">
-                El suministro ya no está disponible y no podrás gestionarlo. Para cualquier duda, escríbenos a atencion.cliente@zenovapro.com
-              </p>
-            </div>
-          </div>
-        );
-      }
 
-      if (service.status_id === 1) {
-        return (
-          <div className="bg-zen-warning-50 border border-zen-warning-400 rounded p-3 flex gap-2">
-            <AlertCircle className="w-4 h-4 text-zen-warning-700 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-zen-warning-950">
-                Para continuar con la gestión del suministro debes aportar toda la documentación necesaria.
-              </p>
-              <p className="text-sm text-zen-warning-950">
-                Haz clic en el botón "Subir documentos" para cargar los archivos necesarios.
-              </p>
-            </div>
-          </div>
-        );
-      } else if (service.status_id === 19) {
-        return (
-          <div className="bg-zen-blue-50 border border-zen-blue-200 rounded p-3 flex gap-2">
-            <AlertCircle className="w-4 h-4 text-zen-blue-600 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-zen-blue-900">
-                Tus documentos están siendo revisados
-              </p>
-              <p className="text-sm text-zen-blue-700">
-                Si todo es correcto, avanzaremos automáticamente con la gestión del suministro
-              </p>
-            </div>
-          </div>
-        );
-      } else {
-        const isExpanded = expandedComments.has(service.id);
-        const commentRef = React.useRef<HTMLParagraphElement>(null);
-        const [showReadMore, setShowReadMore] = React.useState(false);
-
-        React.useEffect(() => {
-          if (commentRef.current) {
-            // Verificar si el contenido excede 72px de altura
-            setShowReadMore(commentRef.current.scrollHeight > 72);
-          }
-        }, [service.comment]);
-
-        const toggleCommentExpansion = () => {
-          setExpandedComments(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(service.id)) {
-              newSet.delete(service.id);
-            } else {
-              newSet.add(service.id);
-            }
-            return newSet;
-          });
-        };
-
-        return (
-          <div className="bg-zen-grey-100 rounded p-3">
-            {service.comment ? (
-              <div className="flex flex-col gap-2">
-                {/* Header con icono ChatDots y título */}
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-zen-grey-600" viewBox="0 0 16 16" fill="currentColor">
-                    <use href="/icons.svg#chat-dots" />
-                  </svg>
-                  <span className="text-sm font-semibold text-zen-grey-600">Observaciones</span>
-                </div>
-
-                {/* Texto del comentario truncado o expandido */}
-                <p
-                  ref={commentRef}
-                  className="text-sm text-zen-grey-600 overflow-hidden"
-                  style={{ maxHeight: isExpanded ? 'none' : '72px' }}
-                >
-                  {service.comment}
-                </p>
-
-                {/* Botón "Leer más/menos" alineado a la derecha - solo si el texto excede 72px */}
-                {showReadMore && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={toggleCommentExpansion}
-                      className="text-sm text-zen-blue-500 font-semibold flex items-center gap-1 hover:text-zen-blue-600 transition-colors"
-                    >
-                      {isExpanded ? 'Leer menos' : 'Leer más'}
-                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                        <use href="/icons.svg#arrow-small" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-zen-grey-500 italic">
-                No hay observaciones para este servicio
-              </p>
-            )}
-          </div>
-        );
-      }
-    };
-
-    // Renderiza el banner de estado (incidencia/finalizado)
-    const renderStatusBanner = (service: any) => {
-      const isFinalStatus = service.services_status?.is_final === true;
-      if (isFinalStatus) {
-        return (
-          <div className="text-center">
-            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-red-900 mb-2">
-              Trámite Finalizado
-            </h3>
-            <p className="text-red-700 font-medium">
-              {service.services_status?.name}
-            </p>
-            <p className="text-sm text-red-600 mt-2">
-              Este servicio ha finalizado
-            </p>
-          </div>
-        );
-      }
-      return null;
-    };
     const cacheState = getServicesCacheState(constructionId);
     const {
       data: constructionServices,
@@ -422,11 +221,7 @@ export default function ConstructionView() {
       error: servicesError,
     } = cacheState;
 
-    // Verificar si algún servicio está en estado de incidencia
-
     if (expandedConstruction !== constructionId) return null;
-
-    // Los servicios se cargan desde toggleConstructionExpansion, no aquí
 
     // Cargar estados de servicio cuando se expande
     useEffect(() => {
@@ -438,31 +233,15 @@ export default function ConstructionView() {
       }
     }, [expandedConstruction, constructionId]);
 
-    /**
-     * Carga los posibles estados de los tipos de servicio desde la base de datos.
-     */
     const fetchServiceTypeStatuses = async () => {
-      // Solo cargar si no se han cargado ya para este servicio
-      if (statusesFetchedRef.current.has(constructionId)) {
-        return;
-      }
-      
+      if (statusesFetchedRef.current.has(constructionId)) return;
       try {
         setStatusesLoading(true);
         statusesFetchedRef.current.add(constructionId);
         const { data, error } = await supabase
           .from('service_type_status')
-          .select(
-            `
-            *,
-            services_status (
-              id,
-              name
-            )
-          `
-          )
+          .select(`*, services_status (id, name)`)
           .order('orden');
-
         if (error) throw error;
         setServiceTypeStatuses(data || []);
       } catch (err) {
@@ -473,119 +252,316 @@ export default function ConstructionView() {
     };
 
     /**
-     * Devuelve los estados posibles para un tipo de servicio.
+     * Obtener la información de seguimiento según el estado del servicio.
      */
-    const getServiceTypeStatusesForService = (serviceTypeId: number) => {
-      // Incluir estados comunes (service_type_id = null) y específicos del service_type
-      return serviceTypeStatuses
-        .filter(
-          (sts) =>
-            sts.service_type_id === null ||
-            sts.service_type_id === serviceTypeId
-        )
-        .sort((a, b) => a.orden - b.orden);
+    const getTrackingInfo = (service: any) => {
+      if (service.services_status?.is_final === true) {
+        return {
+          icon: 'info',
+          iconColor: 'text-zen-grey-400',
+          title: 'Has eliminado este suministro',
+          description: 'Para cualquier duda, escríbenos a atencion.cliente@zenovapro.com',
+          bg: 'bg-zen-grey-100',
+          border: 'border-zen-grey-200',
+          hasBox: true,
+        };
+      }
+      if (service.status_id === 1 || service.services_status?.requires_user_action) {
+        return {
+          icon: 'alert-triangle',
+          iconColor: 'text-zen-warning-600',
+          title: 'Documentación pendiente',
+          description: 'Haz clic en el botón "Subir documentos"',
+          bg: 'bg-zen-warning-50',
+          border: 'border-zen-warning-300',
+          hasBox: true,
+        };
+      }
+      if (service.status_id === 19) {
+        return {
+          icon: 'info',
+          iconColor: 'text-zen-blue-600',
+          title: 'Documentos en revisión',
+          description: 'Si son correctos, la gestión avanzará automáticamente.',
+          bg: 'bg-zen-blue-50',
+          border: 'border-zen-blue-200',
+          hasBox: true,
+        };
+      }
+      // Observaciones/comentario - SIN caja
+      if (service.comment || service.services_status?.is_incidence) {
+        return {
+          icon: 'chat-dots',
+          iconColor: 'text-zen-grey-500',
+          title: 'Observaciones',
+          description: service.comment || 'Hay una incidencia que requiere tu atención.',
+          bg: '',
+          border: '',
+          hasBox: false,
+        };
+      }
+      // Default sin observaciones
+      return {
+        icon: 'chat-dots',
+        iconColor: 'text-zen-grey-400',
+        title: 'Observaciones',
+        description: 'Sin observaciones',
+        bg: '',
+        border: '',
+        hasBox: false,
+      };
     };
 
     /**
-     * Devuelve el índice del estado actual en la lista de estados posibles.
+     * Obtener icono según el tipo de servicio.
+     * Todos los iconos son azules con fondo verde según diseño Figma.
      */
-    const getCurrentServiceTypeStatusIndex = (
-      statusId: number,
-      serviceTypeId: number
-    ) => {
-      const serviceStatuses = getServiceTypeStatusesForService(serviceTypeId);
-      return serviceStatuses.findIndex(
-        (sts: any) => sts.services_status.id === statusId
-      );
+    const getServiceIcon = (serviceName: string | undefined): string => {
+      const name = serviceName?.toLowerCase() || '';
+      
+      // Luz
+      if (name.includes('luz') && name.includes('obra')) return 'luz-obra';
+      if (name.includes('luz') && name.includes('definitiva')) return 'luz-definitiva';
+      // Agua
+      if (name.includes('agua') && name.includes('obra')) return 'agua-obra';
+      if (name.includes('agua') && name.includes('pci')) return 'shield';
+      if (name.includes('agua') && name.includes('definitiva')) return 'agua-definitiva';
+      // Gas
+      if (name.includes('gas')) return 'gas';
+      // Telecomunicaciones
+      if (name.includes('telecomunicacion')) return 'telecom';
+      
+      return 'services';
     };
 
-    return (
-      <tr className="desplegable w-full">
-        <div className="mt-[-20px]">
-          <div className="bg-zen-grey-50 py-6 rounded-lg p-[18px] ">
-            {/* <h4 className="text-sm font-medium text-zen-grey-950 flex items-center mb-4">
-              <Settings className="w-4 h-4 mr-2" />
-              Servicios de la Obra
-            </h4> */}
+    /**
+     * Estilo del badge de estado - siempre gris según diseño Figma.
+     */
+    const statusStyle = { text: 'text-zen-grey-600', bg: 'bg-zen-grey-50', border: 'border-zen-grey-200' };
 
+    return (
+      <tr className="w-full">
+        <td colSpan={8} className="p-0 w-full flex">
+          <div className="bg-white rounded-b-lg overflow-hidden mt-[-8px] mb-1 w-full flex flex-col border border-zen-grey-100">
             {servicesLoading ? (
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-6">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-sm text-gray-600">
-                  Cargando servicios...
-                </span>
+                <span className="ml-2 text-sm text-gray-600">Cargando servicios...</span>
               </div>
             ) : servicesError ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
                 <div className="flex items-center">
                   <XCircle className="w-5 h-5 text-red-400 mr-2" />
                   <div>
-                    <h5 className="text-sm font-medium text-red-800">
-                      Error al cargar servicios
-                    </h5>
+                    <h5 className="text-sm font-medium text-red-800">Error al cargar servicios</h5>
                     <p className="text-sm text-red-700 mt-1">{servicesError}</p>
                   </div>
                 </div>
               </div>
             ) : constructionServices.length > 0 ? (
-              <div className="space-y-4">
-                {constructionServices.map((service) => (
-                  <div
-                    key={service.id}
-                    className="bg-zen-grey-25 border border-zen-grey-300 rounded-lg overflow-hidden"
-                  >
-                    {/* Header de la card con ID de construcción */}
-                    <div className="bg-zen-grey-25 border-b border-zen-grey-300 px-4 py-3 flex items-center justify-between">
-                      <div className="flex flex-col gap-0">
-                        <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4 text-zen-grey-500" viewBox="0 0 12 13" fill="currentColor">
-                            <use href="/icons.svg#services" />
+              <>
+                {/* Header de la tabla de servicios */}
+                <div className="grid grid-cols-[2fr_1.5fr_3fr_2fr_2fr_40px] items-center py-4 px-4 border-b border-zen-grey-200 w-full bg-zen-grey-50 rounded-t-lg gap-4">
+                  <span className="text-sm font-normal text-zen-grey-600">Tipo de suministro</span>
+                  <span className="text-sm font-normal text-zen-grey-600">Estado actual</span>
+                  <span className="text-sm font-normal text-zen-grey-600">Información de seguimiento</span>
+                  <span className="text-sm font-normal text-zen-grey-600">Acción necesaria</span>
+                  <span className="text-sm font-normal text-zen-grey-600 text-right">Detalle de suministro</span>
+                  <span className="pl-6"></span>
+                </div>
+
+                {/* Filas de servicios */}
+                {constructionServices.map((service) => {
+                  const isFinal = service.services_status?.is_final === true;
+                  const isIncidence = service.services_status?.is_incidence === true;
+                  const trackingInfo = getTrackingInfo(service);
+                  const isExpanded = expandedComments.has(service.id);
+                  const serviceIcon = getServiceIcon(service.service_type?.name);
+
+                  return (
+                    <div
+                      key={service.id}
+                      className={`grid grid-cols-[2fr_1.5fr_3fr_2fr_2fr_40px] items-center py-6 px-4 border-b border-zen-grey-200 last:border-b-0 transition-colors hover:bg-zen-grey-50 w-full bg-white gap-4 ${isFinal ? 'opacity-60' : ''}`}
+                    >
+                      {/* Col 1: Tipo de suministro */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-md bg-zen-green-100 flex items-center justify-center shrink-0">
+                          <svg className="w-5 h-5 text-zen-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                            <use href={`/icons.svg#${serviceIcon}`} />
                           </svg>
-                          <span className="text-sm text-zen-grey-600">Obra Nueva</span>
                         </div>
-                        <h3 className="text-[19px] font-semibold text-zen-grey-950 leading-[1.35]">
-                          ID {construction.id}
-                        </h3>
+                        <span className={`text-base font-medium ${isFinal ? 'text-zen-grey-400 line-through' : 'text-zen-grey-950'}`}>
+                          {service.service_type?.name || `Servicio ${service.type_id}`}
+                        </span>
                       </div>
-                      {/* Menú de acciones (tres puntos) */}
-                      <div className="relative">
+
+                      {/* Col 2: Estado actual */}
+                      <div>
+                        <span className={`inline-flex items-center px-3 py-1 rounded text-sm font-normal border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                          {service.services_status?.name || 'Sin estado'}
+                        </span>
+                      </div>
+
+                      {/* Col 3: Información de seguimiento */}
+                      <div className="min-w-0">
+                        {trackingInfo.hasBox ? (
+                          <div className={`inline-flex items-start gap-2 p-3 rounded border ${trackingInfo.bg} ${trackingInfo.border}`}>
+                            <svg className={`w-4 h-4 ${trackingInfo.iconColor} shrink-0`} viewBox="0 0 16 16" fill="currentColor">
+                              <use href={`/icons.svg#${trackingInfo.icon}`} />
+                            </svg>
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm font-semibold leading-tight text-zen-grey-800">{trackingInfo.title}</p>
+                              <p className="text-sm leading-tight text-zen-grey-600">{trackingInfo.description}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <svg className={`w-4 h-4 ${trackingInfo.iconColor} shrink-0`} viewBox="0 0 16 16" fill="currentColor">
+                              <use href={`/icons.svg#${trackingInfo.icon}`} />
+                            </svg>
+                            <div className="flex flex-col gap-1">
+                              <p className="text-sm font-medium leading-tight text-zen-grey-700">{trackingInfo.title}</p>
+                              <p className={`text-sm leading-tight text-zen-grey-500 ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                                {trackingInfo.description}
+                              </p>
+                              {trackingInfo.description && trackingInfo.description.length > 80 && (
+                                <button
+                                  onClick={() => {
+                                    setExpandedComments(prev => {
+                                      const newSet = new Set(prev);
+                                      if (newSet.has(service.id)) newSet.delete(service.id);
+                                      else newSet.add(service.id);
+                                      return newSet;
+                                    });
+                                  }}
+                                  className="text-xs text-zen-blue-500 font-medium mt-1 hover:text-zen-blue-600 inline-flex items-center gap-1"
+                                >
+                                  {isExpanded ? 'Leer menos' : 'Leer más'}
+                                  <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+                                    <use href={`/icons.svg#arrow-small`} />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Col 4: Acción necesaria */}
+                      <div>
+                        {isFinal ? (
+                          <span className="text-sm text-zen-grey-400 italic">—</span>
+                        ) : isIncidence ? (
+                          <button
+                            onClick={() => {
+                              setShowIncidenceModal({ 
+                                isOpen: true, 
+                                service,
+                                construction: { id: construction.id, name: construction.name }
+                              });
+                              trackEvent('Solve Incidence Pressed', {
+                                page_title: 'Tabla principal obras',
+                                service_type: service.id,
+                                new_construction_id: constructionId,
+                                new_construction_state: service.services_status?.name || undefined
+                              });
+                            }}
+                            className="px-4 py-2.5 flex items-center gap-2 bg-zen-error-deafult text-zen-error-900 rounded text-sm font-semibold hover:bg-zen-error-300 transition-colors whitespace-nowrap"
+                          >
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                              <use href="/icons.svg#wrench" />
+                            </svg>
+                            Resolver incidencia
+                          </button>
+                        ) : service.services_status?.requires_user_action ? (
+                          <button
+                            onClick={() => {
+                              setShowDocumentUploadModal({ isOpen: true, service });
+                              trackEvent('Document Upload Flow Opened', {
+                                page_title: 'Tabla principal obras',
+                                service_type: service.id,
+                                new_construction_id: constructionId,
+                                new_construction_state: service.services_status?.name || undefined
+                              });
+                            }}
+                            className="px-4 py-2.5 flex items-center gap-2 bg-zen-blue-50 text-zen-blue-500 rounded text-sm font-semibold hover:bg-zen-blue-100 transition-colors whitespace-nowrap"
+                          >
+                            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                              <use href="/icons.svg#plus" />
+                            </svg>
+                            Subir documentos
+                          </button>
+                        ) : service.status_id === 1 ? (
+                          <button
+                            onClick={() => {
+                              navigate(`/servicios/${service.id}/documentos`);
+                              trackEvent('Document Upload Flow Opened', {
+                                page_title: 'Tabla principal obras',
+                                type: service.id,
+                                new_construction_id: constructionId
+                              });
+                            }}
+                            className="px-4 py-2.5 flex items-center gap-2 bg-zen-blue-50 text-zen-blue-500 rounded text-sm font-semibold hover:bg-zen-blue-100 transition-colors whitespace-nowrap"
+                          >
+                            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                              <use href="/icons.svg#plus" />
+                            </svg>
+                            Subir documentos
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-2 text-sm font-medium text-zen-grey-500 whitespace-nowrap">
+                            <CheckCircle className="w-5 h-5 text-zen-green-600" />
+                            Sin acciones
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Col 5: Detalle suministro */}
+                      <div className="flex justify-end">
                         <button
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full focus:outline-none"
+                          onClick={() => {
+                            navigate(`/detail/${service.id}`);
+                            trackEvent('Service Detail Pressed', {
+                              page_title: 'Tabla principal obras',
+                              service_id: service.id,
+                              new_construction_id: constructionId
+                            });
+                          }}
+                          disabled={isFinal}
+                          className={`px-4 py-2.5 flex items-center gap-2 rounded text-sm font-semibold border whitespace-nowrap transition-colors ${
+                            isFinal
+                              ? 'bg-zen-grey-50 border-zen-grey-200 text-zen-grey-400 cursor-not-allowed'
+                              : 'bg-white border-zen-grey-300 text-zen-grey-700 hover:bg-zen-grey-100 hover:border-zen-grey-400'
+                          }`}
+                        >
+                          <Eye className="w-4 h-4" />
+                          Detalle de suministro
+                        </button>
+                      </div>
+
+                      {/* Col 6: Menú de opciones (3 puntos) */}
+                      <div className="flex justify-center relative pl-6" data-service-menu>
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpenMenuServiceId(service.id);
-                            trackEvent('Service Card Detail Pressed', {
-                              page_title: 'Tabla principal obras',
-                              new_construction_id: constructionId,
-                              service_id: service.id
-                            })
+                            setOpenServiceMenu(openServiceMenu === service.id ? null : service.id);
                           }}
+                          className="p-1 hover:bg-zen-grey-100 rounded transition-colors"
                         >
-                          <MoreVertical className="w-5 h-5" />
+                          <svg className="w-6 h-6 text-zen-grey-600" viewBox="0 0 16 16" fill="currentColor">
+                            <circle cx="8" cy="3" r="1.5" />
+                            <circle cx="8" cy="8" r="1.5" />
+                            <circle cx="8" cy="13" r="1.5" />
+                          </svg>
                         </button>
-                        {openMenuServiceId === service.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        {openServiceMenu === service.id && (
+                          <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-zen-grey-200 py-1 z-50 min-w-[200px]">
                             <button
-                              className={`block w-full text-left px-4 py-2 text-sm rounded-lg ${
-                                service.status_id !== 1
-                                  ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
-                                  : 'text-gray-700 hover:bg-gray-100'
-                              }`}
                               onClick={() => {
-                                if (service.status_id === 1) {
-                                  setClientManagementWizard({
-                                    isOpen: true,
-                                    service,
-                                  });
-                                  setOpenMenuServiceId(null);
-                                }
-                                trackEvent('Service Card Delete Pressed', {
-                                  page_title: 'Tabla principal obras',
-                                  new_construction_id: constructionId,
-                                  service_id: service.id
-                                })
+                                console.log('Cliente realiza gestión para servicio:', service.id);
+                                setOpenServiceMenu(null);
                               }}
-                              disabled={service.status_id !== 1}
+                              className="w-full px-4 py-2 text-left text-sm text-zen-grey-700 hover:bg-zen-grey-50 transition-colors"
                             >
                               Cliente realiza la gestión
                             </button>
@@ -593,316 +569,17 @@ export default function ConstructionView() {
                         )}
                       </div>
                     </div>
-
-                    {/* Contenido de la card con el servicio */}
-                    <div className="bg-zen-grey-25 p-4 flex">
-                      {/* Sección izquierda: Info del servicio */}
-                      <div className="flex-1 px-2">
-                        {/* Nombre del servicio */}
-                        <div className="bg-zen-grey-50 rounded px-2 py-1 inline-flex items-center gap-1 mb-2">
-                          <h4 className="text-base font-semibold text-zen-grey-950">
-                            {service.service_type?.name || `Servicio ${service.type_id}`}
-                          </h4>
-                        </div>
-
-                    {/* Timeline Progress */}
-                    {!statusesLoading &&
-                      serviceTypeStatuses.length > 0 &&
-                      (() => {
-                        // Check if current status is final
-                        const isFinalStatus =
-                          service.services_status?.is_final === true;
-                        if (isFinalStatus) {
-                          return (
-                            <div>
-                              {/* Left Section: Service name + status tag */}
-                              <div className="flex gap-2 items-start"></div>
-                            </div>
-                          );
-                        }
-                        // Si es incidencia, pintar el tracker en rojo pero el estado activo es el anterior
-                        const isIncidence =
-                          service.services_status?.is_incidence === true;
-                        let trackerStatusId = service.status_id;
-                        if (isIncidence) {
-                          // Si existe previous_status_id y es válido, úsalo como estado activo en el tracker
-                          if (service.previous_status_id) {
-                            trackerStatusId = service.previous_status_id;
-                          }
-                        }
-                        return (
-                          <div>
-                            {/* Timeline Section - Full Width */}
-                            <div className="w-full py-2">
-                              {/* Progress Bar - Diseño Figma */}
-                              <div className="relative w-full">
-                                {(() => {
-                                  const allSteps = getServiceTypeStatusesForService(service.type_id);
-                                  const currentIndex = getCurrentServiceTypeStatusIndex(
-                                    trackerStatusId,
-                                    service.type_id
-                                  );
-                                  const totalSteps = allSteps.length;
-
-                                  // Determinar si mostrar barra de progreso y su color
-                                  const isSinGestionar = service.services_status?.name === 'Sin Gestionar';
-                                  const isActivated = service.services_status?.name === 'Activado';
-                                  const isCanceled = service.services_status?.name === 'Cancelado';
-                                  const noActiveStep = currentIndex === -1;
-                                  // const isActivated = service.services_status?.is_active === true;
-
-                                  let showProgressBar = true;
-                                  let progressBarColor = '#FEB55D'; // Naranja por defecto
-
-                                  // Determinar color de la barra de progreso
-                                  if (isSinGestionar) {
-                                    progressBarColor = '#d0d3dd'; // Gris para Sin gestionar
-                                  } else if (isCanceled || noActiveStep) {
-                                    showProgressBar = false; // No mostrar barra para En Revisión o sin step activo
-                                  } else if (isActivated) {
-                                    progressBarColor = '#78EC95'; // Verde para activado
-                                  } else if (isIncidence) {
-                                    progressBarColor = '#F97066'; // Rojo para incidencia
-                                  }
-
-                                  // Calcular el porcentaje de progreso (hasta el step activo incluido)
-                                  let progressPercentage = '0%';
-                                  if (showProgressBar && totalSteps > 1) {
-                                    if (currentIndex === 0) {
-                                      // Si el primer step está activo, la barra solo rodea ese círculo
-                                      progressPercentage = '16px';
-                                    } else if (currentIndex === totalSteps - 1) {
-                                      // Si el último step está activo, la barra llega al 100%
-                                      progressPercentage = '100%';
-                                    } else {
-                                      // Para los demás casos, calcular para llegar hasta rodear el círculo activo
-                                      const percentage = (currentIndex / (totalSteps - 1)) * 100;
-                                      progressPercentage = `calc(${percentage}% + 12px)`;
-                                    }
-                                  }
-
-                                  return (
-                                    <>
-                                      {/* Contenedor de la barra base y barra de progreso */}
-                                      <div className="relative h-4 mb-1">
-                                        {/* Barra base gris - rodea completamente los círculos */}
-                                        <div
-                                          className="absolute top-0 left-0 right-0 h-4 px-2"
-                                          style={{
-                                            backgroundColor: '#F2F3F7',
-                                            borderRadius: '1000px',
-                                          }}
-                                        />
-
-                                        {/* Barra de progreso de color */}
-                                        {showProgressBar && (
-                                          <div
-                                            className="absolute top-0 h-4 transition-all duration-500"
-                                            style={{
-                                              width: progressPercentage,
-                                              backgroundColor: progressBarColor,
-                                              borderRadius: '50px',
-                                            }}
-                                          />
-                                        )}
-
-                                        {/* Círculos de los steps posicionados absolutamente */}
-                                        <div className="absolute top-0 left-1 right-1 h-4 flex items-center justify-between">
-                                          {allSteps.map((statusConfig, index) => {
-                                            const status = statusConfig.services_status;
-                                            const isActive = status.id === trackerStatusId;
-                                            const isPassed = index < currentIndex;
-
-                                            // Determinar si el círculo está activado (pasado o activo)
-                                            const isActivatedCircle = isPassed || isActive;
-
-                                            // Color del círculo
-                                            let circleColor = '#D0D3DD'; // Gris claro para no activados
-                                            if (isActivatedCircle && showProgressBar) {
-                                              circleColor = progressBarColor;
-                                            } else if (isActivatedCircle && !showProgressBar) {
-                                              circleColor = '#D0D3DD';
-                                            }
-
-                                            return (
-                                              <div
-                                                key={status.id}
-                                                className="rounded-full flex items-center justify-center shrink-0"
-                                                style={{
-                                                  width: '8px',
-                                                  height: '8px',
-                                                  backgroundColor: circleColor,
-                                                }}
-                                              >
-                                                {/* Solo mostrar círculo blanco interior si está activado */}
-                                                {isActivatedCircle && (
-                                                  <div
-                                                    className="rounded-full"
-                                                    style={{
-                                                      width: '8px',
-                                                      height: '8px',
-                                                      backgroundColor: '#FCFCFC'
-                                                    }}
-                                                  />
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-
-                                      {/* Etiquetas de los estados alineadas con los círculos */}
-                                      <div className="flex w-full justify-between">
-                                        {allSteps.map((statusConfig, index) => {
-                                          const status = statusConfig.services_status;
-                                          const isActive = status.id === trackerStatusId;
-                                          const isFirst = index === 0;
-                                          const isLast = index === totalSteps - 1;
-
-                                          return (
-                                            <div
-                                              key={status.id}
-                                              className="flex items-start"
-                                              style={{
-                                                width: '16px',
-                                                flexShrink: 0,
-                                                justifyContent: isFirst ? 'flex-start' : isLast ? 'flex-end' : 'center',
-                                              }}
-                                            >
-                                              <p
-                                                className={`text-xs leading-[1.35] whitespace-pre-line ${
-                                                  isActive
-                                                    ? 'font-semibold text-zen-grey-950'
-                                                    : 'font-normal text-zen-grey-600'
-                                                }`}
-                                                style={{
-                                                  textAlign: isFirst ? 'left' : isLast ? 'right' : 'center',
-                                                  minWidth: '105px',
-                                        
-                                                }}
-                                              >
-                                                {status.name}
-                                              </p>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                        {/* Current Status Badge */}
-                        <div className={`bg-zen-grey-50 rounded px-2 py-1 inline-flex items-center gap-2 border border-zen-grey-200 ${service.services_status?.is_final ? 'mt-0' : 'mt-8'}`}>
-                          <span className="text-xs text-zen-grey-600">
-                            {service.services_status?.name || 'Sin estado'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Separador vertical */}
-                      <div className="w-px bg-zen-grey-200 self-stretch"></div>
-
-                      {/* Sección derecha - Comentarios y botones */}
-                      <div className="w-[390px] px-4 flex flex-col justify-between">
-                      <div className="flex-1">
-                        {renderServiceComments(service)}
-                      </div>
-
-                      <div className="mt-4 flex flex-col gap-2 items-end">
-                        {/* Botón Subir documentos si requiere acción del usuario */}
-                        {service.services_status?.requires_user_action &&
-                          !service.services_status?.is_final && (
-                            <button
-                              onClick={() => {
-                                  setShowDocumentUploadModal({
-                                    isOpen: true,
-                                    service: service,
-                                  })
-                                  trackEvent('Document Upload Flow Opened', {
-                                    page_title: 'Tabla principal obras',
-                                    service_type: service.id,
-                                    new_construction_id: constructionId,
-                                    new_construction_state: service.services_status?.name || undefined
-                                  })
-                                }
-                              }
-                              className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
-                            >
-                              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                                <use href="/icons.svg#plus" />
-                              </svg>
-                              Subir documentos
-                            </button>
-                          )}
-                        {service.status_id === 1 && (
-                            <button
-                                onClick={() => {
-                                  navigate(`/servicios/${service.id}/documentos`)
-                                  trackEvent('Document Upload Flow Opened', {
-                                    page_title: 'Tabla principal obras',
-                                    type: service.id,
-                                    new_construction_id: constructionId
-                                  })
-
-                                }
-                              }
-                              className="w-[177px] px-4 py-2.5 bg-zen-blue-50 text-zen-blue-500 text-sm font-semibold rounded flex items-center justify-center gap-2 hover:bg-zen-blue-100 transition-colors duration-200"
-                            >
-                              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                                <use href="/icons.svg#plus" />
-                              </svg>
-                              Subir documentos
-                            </button>
-                        )}
-
-                        {/* Resolve Incidence Button - Only for incidence states */}
-                        {service.services_status?.is_incidence && (
-                            <button
-                              onClick={() => {
-                                  setShowIncidenceModal({
-                                    isOpen: true,
-                                    service: service,
-                                  })
-
-                                  trackEvent('Solve Incidence Pressed', {
-                                    page_title: 'Tabla principal obras',
-                                    service_type: service.id,
-                                    new_construction_id: constructionId,
-                                    new_construction_state: service.services_status?.name || undefined
-                                  })
-                                }
-                              }
-                              className="w-['max-content'] px-4 py-2.5 flex items-center justify-center gap-2 bg-zen-error-deafult text-zen-error-900 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zen-error-300"
-                            >
-                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                <use href="/icons.svg#wrench" />
-                              </svg>
-                              <span className="text-[14px] font-semibold">Resolver incidencia</span>
-                            </button>
-                        )}
-                      </div>
-                    </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  );
+                })}
+              </>
             ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500">
-                  No hay servicios registrados para esta obra.
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  ID de construcción: {constructionId}
-                </p>
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-500">No hay servicios registrados para esta obra.</p>
+                <p className="text-xs text-gray-400 mt-1">ID de construcción: {constructionId}</p>
               </div>
             )}
           </div>
-        </div>
+        </td>
       </tr>
     );
   };
@@ -1062,6 +739,7 @@ export default function ConstructionView() {
               {/* Headers */}
               <div className="bg-zen-grey-50 flex items-center rounded py-4 w-full">
                 <div className="min-w-[32px] flex-shrink-0"></div>
+                <div className="px-2 min-w-[124px] flex-shrink-0 text-sm font-medium text-zen-grey-950">ID de obra</div>
                 <div className="px-2 min-w-[222px] flex-1 text-sm font-medium text-zen-grey-950">Nombre obra</div>
                 <div className="px-2 min-w-[253px] flex-1 text-sm font-medium text-zen-grey-950">Ubicación</div>
                 <div className="px-2 min-w-[193px] flex-1 text-sm font-medium text-zen-grey-950">Responsable</div>
@@ -1077,6 +755,7 @@ export default function ConstructionView() {
                   <thead className="hidden">
                     <tr>
                       <th></th>
+                      <th>ID de obra</th>
                       <th>Nombre obra</th>
                       <th>Ubicación</th>
                       <th>Responsable</th>
@@ -1106,6 +785,13 @@ export default function ConstructionView() {
                           <use href="/icons.svg#chevron-table" />
                         </svg>
                       </button>
+                    </td>
+
+                    {/* ID de obra */}
+                    <td className="px-2 min-w-[124px] flex-shrink-0 flex items-center">
+                      <span className="text-sm text-zen-grey-700 leading-[1.25]">
+                        {construction.id}
+                      </span>
                     </td>
 
                     {/* Nombre obra */}
@@ -1261,6 +947,7 @@ export default function ConstructionView() {
             refetch();
           }}
           service={showIncidenceModal.service}
+          construction={showIncidenceModal.construction}
         />
       )}
       {/* Document Upload Modal Blue */}
