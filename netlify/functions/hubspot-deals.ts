@@ -101,6 +101,7 @@ export async function handler(event: any, context: any) {
           ? constructionData.servicios_obra.join(';') 
           : constructionData.servicios_obra || '',
         contacto: constructionData.responsible_email || '',
+        deal_construction_id: constructionData.construction_id ? String(constructionData.construction_id) : '',
       }
     };
 
