@@ -210,6 +210,39 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         hubspot_deal_id_type: typeof data.hubspot_deal_id
       });
 
+      // 3. Actualizar el deal en HubSpot con el construction_id
+      if (hubspotDealId && data.id) {
+        try {
+          console.log('📤 Actualizando deal en HubSpot con construction_id:', data.id);
+          
+          const updateUrl = import.meta.env.DEV 
+            ? `/api/hubspot/crm/v3/objects/deals/${hubspotDealId}`
+            : '/.netlify/functions/hubspot-update-deal';
+          
+          const updateResponse = await fetch(updateUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              dealId: hubspotDealId,
+              propertyName: 'deal_construction_id',
+              propertyValue: String(data.id)
+            })
+          });
+          
+          if (updateResponse.ok) {
+            console.log('✅ deal_construction_id actualizado en HubSpot');
+          } else {
+            const errorText = await updateResponse.text();
+            console.error('⚠️ Error actualizando deal_construction_id:', errorText);
+          }
+        } catch (updateError) {
+          console.error('⚠️ Error actualizando deal en HubSpot:', updateError);
+          // No bloqueamos, la obra ya está creada
+        }
+      }
+
       // Alert para verificar inserción
       alert(`🎯 OBRA CREADA: ID=${data.id}, HUBSPOT_ID=${data.hubspot_deal_id}`);
 
