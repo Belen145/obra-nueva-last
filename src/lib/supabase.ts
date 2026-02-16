@@ -3,8 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+const missing: string[] = [];
+if (!supabaseUrl) missing.push('VITE_SUPABASE_URL');
+if (!supabaseAnonKey) missing.push('VITE_SUPABASE_ANON_KEY');
+if (missing.length) {
+  throw new Error(
+    `Missing Supabase environment variables: ${missing.join(', ')}. ` +
+    `Make sure these are set for the build (Netlify: Site → Settings → Build & deploy → Environment).`
+  );
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
