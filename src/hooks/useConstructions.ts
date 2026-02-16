@@ -116,7 +116,7 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         all_keys: Object.keys(dataToInsert)
       });
 
-      const { data, error } = await supabase
+      const { data: construction, error } = await supabase
         .from("construction")
         .insert([dataToInsert])
         .select(
@@ -142,14 +142,14 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
       }
 
       console.log('✅ Construcción creada en Supabase:', {
-        id: data.id,
-        name: data.name
+        id: construction.id,
+        name: construction.name
       });
 
       // 2. Crear el deal en HubSpot con el id de la obra
       let hubspotDealId = null;
       try {
-        console.log('📤 Creando deal en HubSpot con construction_id:', data.id);
+        console.log('📤 Creando deal en HubSpot con construction_id:', construction.id);
         const hubspotData = {
           name: constructionData.name,
           address: constructionData.address || '',
@@ -165,7 +165,7 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
           housing_count: 1,
           acometida: '',
           servicios_obra: [],
-          construction_id: data.id // Aquí se pasa el id de la obra
+          construction_id: String(construction.id) // Aquí se pasa el id de la obra (string)
         };
         const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
         console.log('🔍 Respuesta completa de HubSpot:', hubspotResponse);
@@ -194,25 +194,25 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
           const { error: updateError } = await supabase
             .from("construction")
             .update({ hubspot_deal_id: hubspotDealId })
-            .eq("id", data.id);
+            .eq("id", construction.id);
           if (updateError) {
             console.error('⚠️ Error actualizando hubspot_deal_id en obra:', updateError);
           } else {
-            data.hubspot_deal_id = hubspotDealId;
+            construction.hubspot_deal_id = hubspotDealId;
           }
         } catch (updateError) {
           console.error('⚠️ Error actualizando hubspot_deal_id en obra:', updateError);
         }
       }
 
-      alert(`🎯 OBRA CREADA: ID=${data.id}, HUBSPOT_ID=${data.hubspot_deal_id}`);
+      alert(`🎯 OBRA CREADA: ID=${construction.id}, HUBSPOT_ID=${construction.hubspot_deal_id}`);
 
       // Verificación adicional: consultar la BD directamente después de insertar
       try {
         const { data: verificacion, error: verifyError } = await supabase
           .from("construction")
           .select("id, name, hubspot_deal_id")
-          .eq("id", data.id)
+          .eq("id", construction.id)
           .single();
         
         if (verifyError) {
@@ -224,9 +224,9 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         console.error('❌ Error en verificación:', verifyError);
       }
 
-      console.log('✅ Construcción creada:', data.id, 'con HubSpot Deal:', hubspotDealId);
-      setConstructions((prev: Construction[]) => [data, ...prev]);
-      return { success: true, data };
+      console.log('✅ Construcción creada:', construction.id, 'con HubSpot Deal:', hubspotDealId);
+      setConstructions((prev: Construction[]) => [construction, ...prev]);
+      return { success: true, data: construction };
     } catch (err) {
       console.error("❌ Error adding construction:", err);
       return {
