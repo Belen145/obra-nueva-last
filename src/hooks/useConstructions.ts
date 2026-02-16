@@ -104,79 +104,17 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
         console.log('⚠️ Error en test de estructura:', testError);
       }
       
-      let hubspotDealId = null;
-      
-      // 1. Crear deal en HubSpot primero
-      try {
-        console.log('📤 Creando deal en HubSpot...');
-        
-        // Mapear datos de construcción al formato esperado por HubSpot
-        const hubspotData = {
-          name: constructionData.name,
-          address: constructionData.address || '',
-          postal_code: '', // No tenemos este campo en Construction
-          municipality: '', // No tenemos este campo en Construction
-          responsible_name: constructionData.responsible || '',
-          responsible_lastname: '',
-          responsible_phone: '',
-          responsible_email: '',
-          company_name: '',
-          company_cif: '',
-          fiscal_address: '',
-          housing_count: 1,
-          acometida: '',
-          servicios_obra: []
-        };
-        
-        const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
-        
-        console.log('🔍 Respuesta completa de HubSpot:', hubspotResponse);
-        
-        // Extraer el deal ID de la respuesta - probemos diferentes estructuras
-        if (import.meta.env.DEV) {
-          hubspotDealId = hubspotResponse.id;
-        } else {
-          // En producción, la función Netlify devuelve { success: true, dealId: "xxx", message: "..." }
-          hubspotDealId = hubspotResponse.dealId || 
-                         hubspotResponse.id || 
-                         hubspotResponse.recordId ||
-                         hubspotResponse.data?.id ||
-                         hubspotResponse.data?.dealId;
-        }
-        
-        // Convertir a string si es necesario
-        if (hubspotDealId && typeof hubspotDealId !== 'string') {
-          hubspotDealId = String(hubspotDealId);
-        }
-        
-        console.log('✅ Deal ID extraído:', hubspotDealId);
-        console.log('🔍 Tipo de deal ID:', typeof hubspotDealId);
-        
-        // Log extra visible
-        alert(`🎯 DEAL CREADO: ${hubspotDealId} (tipo: ${typeof hubspotDealId})`);
-      } catch (hubspotError) {
-        console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
-        alert('❌ ERROR en HubSpot: ' + (hubspotError instanceof Error ? hubspotError.message : String(hubspotError)));
-        // Continuamos sin bloquear la creación de la obra
-      }
 
-      // 2. Crear la obra en Supabase con el deal ID
+      // 1. Crear la obra en Supabase primero
       const dataToInsert = {
         ...constructionData,
-        hubspot_deal_id: hubspotDealId // Guardar el ID del deal
+        hubspot_deal_id: null // Se actualizará después
       };
 
       console.log('💾 Datos a insertar en Supabase:', {
         name: dataToInsert.name,
-        hubspot_deal_id: dataToInsert.hubspot_deal_id,
-        hubspot_deal_id_length: dataToInsert.hubspot_deal_id?.length,
         all_keys: Object.keys(dataToInsert)
       });
-
-      // Verificar explícitamente que tenemos el deal ID antes de insertar
-      if (!hubspotDealId) {
-        console.warn('⚠️ ADVERTENCIA: hubspot_deal_id es null/undefined, se insertará como NULL');
-      }
 
       const { data, error } = await supabase
         .from("construction")
@@ -205,45 +143,68 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
 
       console.log('✅ Construcción creada en Supabase:', {
         id: data.id,
-        name: data.name,
-        hubspot_deal_id: data.hubspot_deal_id,
-        hubspot_deal_id_type: typeof data.hubspot_deal_id
+        name: data.name
       });
 
-      // 3. Actualizar el deal en HubSpot con el construction_id
-      if (hubspotDealId && data.id) {
+      // 2. Crear el deal en HubSpot con el id de la obra
+      let hubspotDealId = null;
+      try {
+        console.log('📤 Creando deal en HubSpot con construction_id:', data.id);
+        const hubspotData = {
+          name: constructionData.name,
+          address: constructionData.address || '',
+          postal_code: '',
+          municipality: '',
+          responsible_name: constructionData.responsible || '',
+          responsible_lastname: '',
+          responsible_phone: '',
+          responsible_email: '',
+          company_name: '',
+          company_cif: '',
+          fiscal_address: '',
+          housing_count: 1,
+          acometida: '',
+          servicios_obra: [],
+          construction_id: data.id // Aquí se pasa el id de la obra
+        };
+        const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
+        console.log('🔍 Respuesta completa de HubSpot:', hubspotResponse);
+        if (import.meta.env.DEV) {
+          hubspotDealId = hubspotResponse.id;
+        } else {
+          hubspotDealId = hubspotResponse.dealId || 
+                         hubspotResponse.id || 
+                         hubspotResponse.recordId ||
+                         hubspotResponse.data?.id ||
+                         hubspotResponse.data?.dealId;
+        }
+        if (hubspotDealId && typeof hubspotDealId !== 'string') {
+          hubspotDealId = String(hubspotDealId);
+        }
+        console.log('✅ Deal ID extraído:', hubspotDealId);
+        alert(`🎯 DEAL CREADO: ${hubspotDealId} (tipo: ${typeof hubspotDealId})`);
+      } catch (hubspotError) {
+        console.error('⚠️ Error creando deal en HubSpot:', hubspotError);
+        alert('❌ ERROR en HubSpot: ' + (hubspotError instanceof Error ? hubspotError.message : String(hubspotError)));
+      }
+
+      // 3. Actualizar la obra con el id del deal
+      if (hubspotDealId) {
         try {
-          console.log('📤 Actualizando deal en HubSpot con construction_id:', data.id);
-          
-          const updateUrl = import.meta.env.DEV 
-            ? `/api/hubspot/crm/v3/objects/deals/${hubspotDealId}`
-            : '/.netlify/functions/hubspot-update-deal';
-          
-          const updateResponse = await fetch(updateUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              dealId: hubspotDealId,
-              propertyName: 'deal_construction_id',
-              propertyValue: String(data.id)
-            })
-          });
-          
-          if (updateResponse.ok) {
-            console.log('✅ deal_construction_id actualizado en HubSpot');
+          const { error: updateError } = await supabase
+            .from("construction")
+            .update({ hubspot_deal_id: hubspotDealId })
+            .eq("id", data.id);
+          if (updateError) {
+            console.error('⚠️ Error actualizando hubspot_deal_id en obra:', updateError);
           } else {
-            const errorText = await updateResponse.text();
-            console.error('⚠️ Error actualizando deal_construction_id:', errorText);
+            data.hubspot_deal_id = hubspotDealId;
           }
         } catch (updateError) {
-          console.error('⚠️ Error actualizando deal en HubSpot:', updateError);
-          // No bloqueamos, la obra ya está creada
+          console.error('⚠️ Error actualizando hubspot_deal_id en obra:', updateError);
         }
       }
 
-      // Alert para verificar inserción
       alert(`🎯 OBRA CREADA: ID=${data.id}, HUBSPOT_ID=${data.hubspot_deal_id}`);
 
       // Verificación adicional: consultar la BD directamente después de insertar
