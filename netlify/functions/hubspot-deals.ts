@@ -162,16 +162,16 @@ export async function handler(event: any, context: any) {
       }),
     };
 
-  } catch (error) {
-    console.error('💥 Error en función:', error);
-    console.error('💥 Stack trace:', error.stack);
+  } catch (err: any) {
+    console.error('💥 Error en función:', err);
+    console.error('💥 Stack trace:', err?.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         success: false,
         error: 'Error interno del servidor',
-        details: error.message
+        details: err?.message || String(err)
       }),
     };
   }
