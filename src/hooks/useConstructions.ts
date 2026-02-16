@@ -167,6 +167,7 @@ export function useConstructions(companyId?: string | null, authLoading?: boolea
           servicios_obra: [],
           construction_id: String(construction.id) // Aquí se pasa el id de la obra (string)
         };
+        console.log('📤 useConstructions -> hubspotData:', hubspotData);
         const hubspotResponse = await hubSpotService.createDealFromConstruction(hubspotData);
         console.log('🔍 Respuesta completa de HubSpot:', hubspotResponse);
         if (import.meta.env.DEV) {

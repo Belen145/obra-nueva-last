@@ -497,30 +497,35 @@ export default function ConstructionWizard({
         
         console.log('🎯 Service IDs mapeados para HubSpot:', serviceIdsByType);
         
+        const hubspotPayload = {
+          constructionData: {
+            name: step1Data.name,
+            address: fullAddress,
+            postal_code: step1Data.postal_code,
+            municipality: step1Data.municipality,
+            responsible_name: step2Data.responsible_first_name,
+            responsible_lastname: step2Data.responsible_last_name,
+            responsible_phone: step2Data.responsible_phone,
+            responsible_email: step2Data.responsible_email,
+            company_name: step2Data.society_name,
+            company_cif: step2Data.society_cif,
+            fiscal_address: fullFiscalAddress,
+            housing_count: parseInt(step1Data.housing_count) || 0,
+            acometida: acometidaValue,
+            servicios_obra: serviciosObra,
+            construction_id: String(construction.id),
+          },
+          serviceIds: serviceIdsByType
+        };
+
+        console.log('📤 Enviando a hubspot-deals payload:', hubspotPayload);
+
         const hubspotResponse = await fetch('/.netlify/functions/hubspot-deals', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            constructionData: {
-              name: step1Data.name,
-              address: fullAddress,
-              postal_code: step1Data.postal_code,
-              municipality: step1Data.municipality,
-              responsible_name: step2Data.responsible_first_name,
-              responsible_lastname: step2Data.responsible_last_name,
-              responsible_phone: step2Data.responsible_phone,
-              responsible_email: step2Data.responsible_email,
-              company_name: step2Data.society_name,
-              company_cif: step2Data.society_cif,
-              fiscal_address: fullFiscalAddress,
-              housing_count: parseInt(step1Data.housing_count) || 0,
-              acometida: acometidaValue,
-              servicios_obra: serviciosObra,
-            },
-            serviceIds: serviceIdsByType
-          }),
+          body: JSON.stringify(hubspotPayload),
         });
 
         if (hubspotResponse.ok) {

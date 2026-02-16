@@ -36,8 +36,9 @@ export async function handler(event: any, context: any) {
       };
     }
 
-    const { constructionData, serviceIds } = JSON.parse(event.body);
-    console.log('📥 Datos recibidos:', JSON.stringify(constructionData, null, 2));
+    const parsedBody = JSON.parse(event.body || '{}');
+    const { constructionData, serviceIds } = parsedBody;
+    console.log('📥 Datos recibidos (raw):', JSON.stringify(parsedBody, null, 2));
     console.log('📤 Service IDs recibidos:', serviceIds);
 
     // Validar que tengamos los datos necesarios
@@ -49,6 +50,20 @@ export async function handler(event: any, context: any) {
         body: JSON.stringify({ error: 'Faltan datos de construcción' })
       };
     }
+
+    // Validar que construction_id venga presente y no vacío
+    const rawConstructionId = constructionData.construction_id ?? constructionData.constructionId ?? constructionData.id;
+    if (rawConstructionId === undefined || rawConstructionId === null || String(rawConstructionId).trim() === '') {
+      console.warn('⚠️ construction_id ausente o vacío en constructionData:', constructionData);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'construction_id is required in constructionData' })
+      };
+    }
+
+    // normalizar construction_id a string
+    constructionData.construction_id = String(rawConstructionId);
 
     // Verificar token de HubSpot
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
