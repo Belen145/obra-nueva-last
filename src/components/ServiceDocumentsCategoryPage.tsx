@@ -801,12 +801,28 @@ export default function ServiceDocumentsCategoryPage() {
                 if (driveRes.ok) {
                   const driveData = await driveRes.json();
                   console.log('✅ Fichero subido a Google Drive:', driveData.driveFileId);
-                  // Guardar gdrive_file_id en TODOS los documentos de la obra para este tipo
+                  // Guardar gdrive_file_id correcto por documento (cada copia tiene su propio ID)
                   if (driveData.driveFileId && insertedDocs && insertedDocs.length > 0) {
-                    await supabase
-                      .from('documents')
-                      .update({ gdrive_file_id: driveData.driveFileId })
-                      .in('id', insertedDocs.map((d: any) => d.id));
+                    // Mapa folderId -> fileId de las copias
+                    const copyMap: Record<string, string> = {};
+                    for (const cf of (driveData.copiedFiles || [])) {
+                      copyMap[cf.folderId] = cf.fileId;
+                    }
+                    // Mapa serviceId -> folderId
+                    const folderByService: Record<number, string> = {};
+                    for (const f of (allFolders || [])) {
+                      folderByService[f.service_id] = f.folder_id;
+                    }
+                    for (const doc of insertedDocs) {
+                      const isPrimary = doc.service_id === parseInt(serviceId!);
+                      const fileId = isPrimary
+                        ? driveData.driveFileId
+                        : copyMap[folderByService[doc.service_id]] ?? driveData.driveFileId;
+                      await supabase
+                        .from('documents')
+                        .update({ gdrive_file_id: fileId })
+                        .eq('id', doc.id);
+                    }
                   }
                 } else {
                   console.warn('⚠️ Error al subir a Google Drive:', await driveRes.text());
@@ -963,29 +979,42 @@ export default function ServiceDocumentsCategoryPage() {
       if (servicesError) throw servicesError;
       const allServiceIds = allServicesData?.map(s => s.id) || [];
 
+      // Recoger todos los gdrive_file_ids ANTES de eliminar de la BD
+      const { data: docsToDelete } = await supabase
+        .from('documents')
+        .select('gdrive_file_id')
+        .in('service_id', allServiceIds)
+        .eq('document_type_id', documentTypeId);
+
+      const driveFileIds = [...new Set(
+        (docsToDelete || []).map((d: any) => d.gdrive_file_id).filter(Boolean)
+      )];
+
       // Eliminar TODOS los documentos del mismo tipo en todos los servicios de la obra
       await supabase
         .from('documents')
         .delete()
         .in('service_id', allServiceIds)
         .eq('document_type_id', documentTypeId);
-      
-      // Eliminar de Google Drive si tenemos el ID del fichero (no bloqueante)
-      if (docData?.gdrive_file_id) {
+
+      // Eliminar cada fichero de Google Drive (no bloqueante)
+      if (driveFileIds.length > 0) {
         (async () => {
-          try {
-            const driveRes = await fetch('/.netlify/functions/google-drive-delete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileId: docData.gdrive_file_id }),
-            });
-            if (driveRes.ok) {
-              console.log('✅ Fichero eliminado de Google Drive:', docData.gdrive_file_id);
-            } else {
-              console.warn('⚠️ Error al eliminar de Google Drive:', await driveRes.text());
+          for (const fileId of driveFileIds) {
+            try {
+              const driveRes = await fetch('/.netlify/functions/google-drive-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileId }),
+              });
+              if (driveRes.ok) {
+                console.log('✅ Fichero eliminado de Google Drive:', fileId);
+              } else {
+                console.warn('⚠️ Error al eliminar de Google Drive:', await driveRes.text());
+              }
+            } catch (driveError) {
+              console.error('❌ Error eliminando de Google Drive (no bloqueante):', driveError);
             }
-          } catch (driveError) {
-            console.error('❌ Error eliminando de Google Drive (no bloqueante):', driveError);
           }
         })();
       }

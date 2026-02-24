@@ -168,21 +168,29 @@ export async function handler(event: any, _context: any) {
     const driveFile = await uploadFileToDrive(fileBuffer, fileName, resolvedMimeType, folderId, accessToken);
     console.log(`✅ Fichero subido a Drive: ${driveFile.id}`);
 
-    // Añadir el mismo fichero a las carpetas adicionales (otros servicios de la misma obra)
+    // Copiar el fichero a las carpetas adicionales (otros servicios de la misma obra)
+    // Nota: addParents está deprecado en Drive API v3, se usa files.copy en su lugar
+    const copiedFiles: { folderId: string; fileId: string }[] = [];
     if (additionalFolderIds && additionalFolderIds.length > 0) {
       for (const extraFolderId of additionalFolderIds) {
-        console.log(`📎 Añadiendo fichero a carpeta adicional: ${extraFolderId}`);
-        const addRes = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${driveFile.id}?addParents=${extraFolderId}&supportsAllDrives=true&fields=id`,
+        console.log(`📎 Copiando fichero a carpeta adicional: ${extraFolderId}`);
+        const copyRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${driveFile.id}/copy?supportsAllDrives=true&fields=id,webViewLink`,
           {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${accessToken}` },
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: fileName, parents: [extraFolderId] }),
           }
         );
-        if (addRes.ok) {
-          console.log(`✅ Fichero añadido a carpeta: ${extraFolderId}`);
+        if (copyRes.ok) {
+          const copyData = await copyRes.json() as { id: string };
+          console.log(`✅ Fichero copiado a carpeta: ${extraFolderId}, ID: ${copyData.id}`);
+          copiedFiles.push({ folderId: extraFolderId, fileId: copyData.id });
         } else {
-          console.warn(`⚠️ No se pudo añadir a carpeta ${extraFolderId}:`, await addRes.text());
+          console.warn(`⚠️ No se pudo copiar a carpeta ${extraFolderId}:`, await copyRes.text());
         }
       }
     }
@@ -194,6 +202,7 @@ export async function handler(event: any, _context: any) {
         success: true,
         driveFileId: driveFile.id,
         driveFileUrl: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`,
+        copiedFiles,
       }),
     };
 
