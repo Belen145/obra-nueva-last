@@ -768,15 +768,25 @@ export default function ServiceDocumentsCategoryPage() {
               .single();
 
             if (docType?.category) {
-              const { data: folderData } = await supabase
+              // Obtener carpetas de TODOS los servicios de la obra para esta categoría
+              const { data: allFolders } = await supabase
                 .from('gdrive_category_folders')
-                .select('folder_id')
-                .eq('service_id', parseInt(serviceId))
-                .eq('category', docType.category)
-                .maybeSingle();
+                .select('service_id, folder_id')
+                .in('service_id', allServiceIds)
+                .eq('category', docType.category);
 
-              if (folderData?.folder_id) {
-                console.log('📁 Subiendo fichero a Google Drive, carpeta:', folderData.folder_id);
+              const primaryFolder = allFolders?.find(
+                (f: any) => f.service_id === parseInt(serviceId!)
+              );
+              const additionalFolderIds = allFolders
+                ?.filter((f: any) => f.service_id !== parseInt(serviceId!))
+                .map((f: any) => f.folder_id) || [];
+
+              if (primaryFolder?.folder_id) {
+                console.log('📁 Subiendo fichero a Google Drive, carpeta principal:', primaryFolder.folder_id);
+                if (additionalFolderIds.length > 0) {
+                  console.log('📎 Carpetas adicionales (otros servicios):', additionalFolderIds);
+                }
                 const driveRes = await fetch('/.netlify/functions/google-drive-upload', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -784,23 +794,19 @@ export default function ServiceDocumentsCategoryPage() {
                     fileUrl,
                     fileName: file.name,
                     mimeType: file.type || 'application/octet-stream',
-                    folderId: folderData.folder_id,
+                    folderId: primaryFolder.folder_id,
+                    additionalFolderIds,
                   }),
                 });
                 if (driveRes.ok) {
                   const driveData = await driveRes.json();
                   console.log('✅ Fichero subido a Google Drive:', driveData.driveFileId);
-                  // Guardar el ID del fichero en Drive en el documento del servicio actual
-                  if (driveData.driveFileId && insertedDocs) {
-                    const docForCurrentService = insertedDocs.find(
-                      (d: any) => d.service_id === parseInt(serviceId!)
-                    );
-                    if (docForCurrentService) {
-                      await supabase
-                        .from('documents')
-                        .update({ gdrive_file_id: driveData.driveFileId })
-                        .eq('id', docForCurrentService.id);
-                    }
+                  // Guardar gdrive_file_id en TODOS los documentos de la obra para este tipo
+                  if (driveData.driveFileId && insertedDocs && insertedDocs.length > 0) {
+                    await supabase
+                      .from('documents')
+                      .update({ gdrive_file_id: driveData.driveFileId })
+                      .in('id', insertedDocs.map((d: any) => d.id));
                   }
                 } else {
                   console.warn('⚠️ Error al subir a Google Drive:', await driveRes.text());

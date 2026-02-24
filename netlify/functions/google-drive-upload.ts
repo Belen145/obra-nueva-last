@@ -127,11 +127,12 @@ export async function handler(event: any, _context: any) {
 
     // Parsear body
     const body = JSON.parse(event.body || '{}');
-    const { fileUrl, fileName, mimeType, folderId } = body as {
+    const { fileUrl, fileName, mimeType, folderId, additionalFolderIds } = body as {
       fileUrl: string;
       fileName: string;
       mimeType: string;
       folderId: string;
+      additionalFolderIds?: string[];
     };
 
     if (!fileUrl || !fileName || !folderId) {
@@ -161,11 +162,30 @@ export async function handler(event: any, _context: any) {
     const fileBuffer = await fileResponse.arrayBuffer();
     console.log(`✅ Fichero descargado (${fileBuffer.byteLength} bytes)`);
 
-    // Subir a Google Drive
+    // Subir a Google Drive (carpeta principal)
     const resolvedMimeType = mimeType || 'application/octet-stream';
     console.log(`⬆️ Subiendo "${fileName}" a carpeta Drive: ${folderId}`);
     const driveFile = await uploadFileToDrive(fileBuffer, fileName, resolvedMimeType, folderId, accessToken);
     console.log(`✅ Fichero subido a Drive: ${driveFile.id}`);
+
+    // Añadir el mismo fichero a las carpetas adicionales (otros servicios de la misma obra)
+    if (additionalFolderIds && additionalFolderIds.length > 0) {
+      for (const extraFolderId of additionalFolderIds) {
+        console.log(`📎 Añadiendo fichero a carpeta adicional: ${extraFolderId}`);
+        const addRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${driveFile.id}?addParents=${extraFolderId}&supportsAllDrives=true&fields=id`,
+          {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          }
+        );
+        if (addRes.ok) {
+          console.log(`✅ Fichero añadido a carpeta: ${extraFolderId}`);
+        } else {
+          console.warn(`⚠️ No se pudo añadir a carpeta ${extraFolderId}:`, await addRes.text());
+        }
+      }
+    }
 
     return {
       statusCode: 200,
