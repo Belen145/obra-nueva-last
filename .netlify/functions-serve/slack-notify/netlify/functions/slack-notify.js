@@ -1,3 +1,5 @@
+"use strict";
+
 // netlify/functions/slack-notify.js
 exports.handler = async (event, context) => {
   const headers = {
@@ -50,22 +52,22 @@ exports.handler = async (event, context) => {
             {
               type: "mrkdwn",
               text: `*\u{1F3D7}\uFE0F Obra:*
-${requestBody.obraName}`
+${requestBody.obra || "No especificada"}`
             },
             {
               type: "mrkdwn",
               text: `*\u{1F4C4} Documento:*
-${requestBody.documentName}`
+${requestBody.documento || "No especificado"}`
             },
             {
               type: "mrkdwn",
-              text: `*\u{1F464} Usuario:*
-${requestBody.userName}`
+              text: `*\u{1F4C2} Categor\xEDa:*
+${requestBody.categoria || "No especificada"}`
             },
             {
               type: "mrkdwn",
-              text: `*\u{1F4E7} Email:*
-${requestBody.userEmail}`
+              text: `*\u{1F4CE} Archivo:*
+${requestBody.archivo || "No especificado"}`
             }
           ]
         },
@@ -73,50 +75,99 @@ ${requestBody.userEmail}`
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*\u{1F517} Enlace:* <${requestBody.downloadUrl}|Ver documento>`
+            text: requestBody.documentUrl ? `*\u{1F517} Enlace:* <${requestBody.documentUrl}|\u{1F4E5} Descargar documento>` : requestBody.text || `\u2705 Documento *${requestBody.archivo || "archivo"}* subido en la obra *${requestBody.obra || "obra"}*`
           }
         }
       ]
     };
     console.log("\u{1F4E4} Enviando mensaje a Slack...");
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(slackMessage)
-    });
-    console.log("\u{1F4E1} Respuesta de Slack:", response.status, response.statusText);
-    if (response.ok) {
-      console.log("\u2705 Notificaci\xF3n enviada exitosamente");
+    console.log("\u{1F517} URL del webhook:", webhookUrl.substring(0, 50) + "...");
+    console.log("\u{1F4CB} Mensaje a enviar:", JSON.stringify(slackMessage, null, 2));
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(slackMessage)
+      });
+      console.log("\u{1F4E1} Respuesta de Slack:", response.status, response.statusText);
+      if (response.ok) {
+        console.log("\u2705 Notificaci\xF3n enviada exitosamente");
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: "Notificaci\xF3n enviada a Slack"
+          })
+        };
+      } else {
+        const errorText = await response.text();
+        console.log("\u274C Error de Slack:", errorText);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Error al enviar a Slack",
+            details: errorText,
+            slackStatus: response.status
+          })
+        };
+      }
+    } catch (fetchError) {
+      console.log("\u274C Error en fetch a Slack:", fetchError.message);
+      console.log("\u{1F50D} Stack trace:", fetchError.stack);
+      try {
+        console.log("\u{1F504} Intentando env\xEDo simple como fallback...");
+        const simpleMessage = {
+          text: `\u{1F4CB} Nuevo documento subido
+\u{1F3D7}\uFE0F Obra: ${requestBody.obra}
+\u{1F4C4} Documento: ${requestBody.documento}`
+        };
+        const fallbackResponse = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(simpleMessage)
+        });
+        if (fallbackResponse.ok) {
+          console.log("\u2705 Env\xEDo simple exitoso");
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              success: true,
+              message: "Notificaci\xF3n enviada a Slack (modo simple)"
+            })
+          };
+        } else {
+          console.log("\u274C Fallback tambi\xE9n fall\xF3:", fallbackResponse.status);
+        }
+      } catch (fallbackError) {
+        console.log("\u274C Error en fallback:", fallbackError.message);
+      }
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
         body: JSON.stringify({
-          success: true,
-          message: "Notificaci\xF3n enviada a Slack"
-        })
-      };
-    } else {
-      const errorText = await response.text();
-      console.log("\u274C Error de Slack:", errorText);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          error: "Error al enviar a Slack",
-          details: errorText
+          error: "Error interno",
+          details: fetchError.message,
+          stack: fetchError.stack
         })
       };
     }
   } catch (error) {
-    console.log("\u274C Error en funci\xF3n:", error);
+    console.log("\u274C Error general en funci\xF3n:", error.message);
+    console.log("\u{1F50D} Stack trace general:", error.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: "Error interno",
-        details: error.message
+        error: "Error interno general",
+        details: error.message,
+        stack: error.stack
       })
     };
   }

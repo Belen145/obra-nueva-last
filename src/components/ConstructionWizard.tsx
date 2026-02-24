@@ -483,7 +483,88 @@ export default function ConstructionWizard({
         console.log('📋 Servicios creados:', createdServices);
       }
 
-      // 3. CREAR EN HUBSPOT CON TODA LA INFORMACIÓN (DESPUÉS DE SERVICIOS)
+      // 3. CREAR ESTRUCTURA EN GOOGLE DRIVE (después de crear los servicios)
+      try {
+        console.log('📁 Creando estructura en Google Drive...');
+
+        // Obtener servicios reales de la BD (para manejar el trigger "ambos" que genera IDs reales)
+        const { data: actualServices } = await supabase
+          .from('services')
+          .select('id, type_id, service_type(name)')
+          .eq('construction_id', construction.id);
+
+        if (actualServices && actualServices.length > 0) {
+          // Para cada servicio, obtener las categorías de documentos requeridos
+          const servicesWithCategories = await Promise.all(
+            actualServices.map(async (service: any) => {
+              const { data: requiredDocs } = await supabase
+                .from('service_required_document')
+                .select('documentation_type(category)')
+                .eq('service_type_id', service.type_id);
+
+              const categories = [...new Set(
+                (requiredDocs || []).map((d: any) => d.documentation_type?.category).filter(Boolean)
+              )] as string[];
+
+              return {
+                serviceId: service.id,
+                serviceTypeName: service.service_type?.name || `Servicio ${service.type_id}`,
+                categories,
+              };
+            })
+          );
+
+          const driveRes = await fetch('/.netlify/functions/google-drive-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              constructionId: construction.id,
+              constructionName: step1Data.name,
+              services: servicesWithCategories,
+            }),
+          });
+
+          if (driveRes.ok) {
+            const driveData = await driveRes.json();
+            console.log('✅ Estructura Drive creada:', driveData);
+
+            // Guardar ID de carpeta raíz en la obra
+            await supabase
+              .from('construction')
+              .update({ gdrive_folder_id: driveData.constructionFolderId })
+              .eq('id', construction.id);
+
+            // Guardar IDs de carpetas de servicios y categorías
+            for (const sf of (driveData.serviceFolders || [])) {
+              await supabase
+                .from('services')
+                .update({ gdrive_folder_id: sf.folderId })
+                .eq('id', sf.serviceId);
+
+              if (sf.categoryFolders && sf.categoryFolders.length > 0) {
+                await supabase
+                  .from('gdrive_category_folders')
+                  .insert(
+                    sf.categoryFolders.map((cf: any) => ({
+                      service_id: sf.serviceId,
+                      category: cf.category,
+                      folder_id: cf.folderId,
+                    }))
+                  );
+              }
+            }
+            console.log('✅ IDs de carpetas Drive guardados en BD');
+          } else {
+            const errText = await driveRes.text();
+            console.warn('⚠️ Error al crear estructura Drive:', errText);
+          }
+        }
+      } catch (driveError) {
+        console.error('❌ Error Google Drive setup (no bloqueante):', driveError);
+        // No bloquea la creación de la obra
+      }
+
+      // 4. CREAR EN HUBSPOT CON TODA LA INFORMACIÓN (DESPUÉS DE SERVICIOS)
       try {
         console.log('🚀 V1.4 - Creando Deal en HubSpot con service IDs...');
         

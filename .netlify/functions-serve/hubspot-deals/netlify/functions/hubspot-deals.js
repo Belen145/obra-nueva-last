@@ -1,3 +1,4 @@
+"use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -51,8 +52,10 @@ async function handler(event, context) {
         body: JSON.stringify({ error: "No body provided" })
       };
     }
-    const { constructionData } = JSON.parse(event.body);
-    console.log("\u{1F4E5} Datos recibidos:", JSON.stringify(constructionData, null, 2));
+    const parsedBody = JSON.parse(event.body || "{}");
+    const { constructionData, serviceIds } = parsedBody;
+    console.log("\u{1F4E5} Datos recibidos (raw):", JSON.stringify(parsedBody, null, 2));
+    console.log("\u{1F4E4} Service IDs recibidos:", serviceIds);
     if (!constructionData || !constructionData.name) {
       console.log("\u274C Faltan datos de construcci\xF3n");
       return {
@@ -61,6 +64,16 @@ async function handler(event, context) {
         body: JSON.stringify({ error: "Faltan datos de construcci\xF3n" })
       };
     }
+    const rawConstructionId = constructionData.construction_id ?? constructionData.constructionId ?? constructionData.id;
+    if (rawConstructionId === void 0 || rawConstructionId === null || String(rawConstructionId).trim() === "") {
+      console.warn("\u26A0\uFE0F construction_id ausente o vac\xEDo en constructionData:", constructionData);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "construction_id is required in constructionData" })
+      };
+    }
+    constructionData.construction_id = String(rawConstructionId);
     const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
     if (!hubspotToken) {
       console.log("\u274C Token de HubSpot no configurado");
@@ -73,6 +86,16 @@ async function handler(event, context) {
     console.log("\u{1F511} Token encontrado:", hubspotToken.substring(0, 10) + "...");
     const ownerId = process.env.HUBSPOT_OWNER_ID || "158118434";
     console.log("\u{1F464} Owner ID usado:", ownerId);
+    const serviceTypeMapping = {
+      1: "construction_electric_service_id",
+      2: "final_electric_service_id",
+      3: "construction_water_service_id",
+      4: "final_water_service_id",
+      5: "pci_water_service_id",
+      6: "construction_telecom_service_id",
+      7: "new_gas_connection_service_id",
+      8: "gas_capping_service_id"
+    };
     const dealProperties = {
       properties: {
         dealname: constructionData.name,
@@ -80,6 +103,10 @@ async function handler(event, context) {
         hubspot_owner_id: ownerId,
         // ✅ Configurable por entorno
         enviar_presupuesto: true,
+        push_doc_obra_nueva: true,
+        // ✅ Nueva propiedad para identificar obras nuevas
+        nombre_contacto_representante: constructionData.responsible_name || "",
+        apellidos_contacto_representante: constructionData.responsible_lastname || "",
         direccion_obra: constructionData.address || "",
         codigo_postal_obra: constructionData.postal_code || "",
         municipio_obra: constructionData.municipality || "",
@@ -88,9 +115,30 @@ async function handler(event, context) {
         domicilio_fiscal_peticionario: constructionData.fiscal_address || "",
         numero_viviendas: constructionData.housing_count || 0,
         acometida: constructionData.acometida || "",
-        servicios_obra: Array.isArray(constructionData.servicios_obra) ? constructionData.servicios_obra.join(";") : constructionData.servicios_obra || ""
+        servicios_obra: Array.isArray(constructionData.servicios_obra) ? constructionData.servicios_obra.join(";") : constructionData.servicios_obra || "",
+        contacto: constructionData.responsible_email || "",
+        deal_construction_id: constructionData.construction_id ? String(constructionData.construction_id) : ""
       }
     };
+    if (serviceIds && typeof serviceIds === "object") {
+      console.log("\u{1F4DD} Procesando service IDs para HubSpot...");
+      Object.entries(serviceIds).forEach(([serviceTypeId, serviceId]) => {
+        const typeId = parseInt(serviceTypeId);
+        const hubspotField = serviceTypeMapping[typeId];
+        if (hubspotField && serviceId) {
+          const serviceIdNum = parseInt(String(serviceId));
+          if (!isNaN(serviceIdNum) && serviceIdNum > 0) {
+            dealProperties.properties[hubspotField] = String(serviceIdNum);
+            console.log(`\u2705 Mapeado: service_type ${typeId} -> ${hubspotField} = ${serviceIdNum}`);
+          } else {
+            console.log(`\u274C Service ID inv\xE1lido para tipo ${typeId}:`, serviceId);
+          }
+        } else {
+          console.log(`\u26A0\uFE0F Tipo de servicio no reconocido o sin ID:`, { typeId, serviceId, hubspotField });
+        }
+      });
+    }
+    console.log("\u{1F4DD} Propiedades finales del Deal:", dealProperties.properties);
     console.log("\u{1F680} Enviando a HubSpot:", JSON.stringify(dealProperties, null, 2));
     const response = await fetch("https://api.hubapi.com/crm/v3/objects/deals", {
       method: "POST",
@@ -117,16 +165,16 @@ async function handler(event, context) {
         message: "Deal creado exitosamente"
       })
     };
-  } catch (error) {
-    console.error("\u{1F4A5} Error en funci\xF3n:", error);
-    console.error("\u{1F4A5} Stack trace:", error.stack);
+  } catch (err) {
+    console.error("\u{1F4A5} Error en funci\xF3n:", err);
+    console.error("\u{1F4A5} Stack trace:", err?.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         success: false,
         error: "Error interno del servidor",
-        details: error.message
+        details: err?.message || String(err)
       })
     };
   }

@@ -1,20 +1,20 @@
 {
 	"geolocation": {
 		"data": {
-			"city": "Madrid",
+			"city": "Illescas",
 			"country": {
 				"code": "ES",
 				"name": "Spain"
 			},
 			"subdivision": {
-				"code": "MD",
-				"name": "Madrid"
+				"code": "CM",
+				"name": "Castille-La Mancha"
 			},
 			"timezone": "Europe/Madrid",
-			"latitude": 40.4328,
-			"longitude": -3.701,
-			"postalCode": "28010"
+			"latitude": 40.1207,
+			"longitude": -3.8407,
+			"postalCode": "45200"
 		},
-		"timestamp": 1763552277525
+		"timestamp": 1771930190196
 	}
 }

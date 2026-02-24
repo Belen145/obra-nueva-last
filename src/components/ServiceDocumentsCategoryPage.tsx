@@ -757,6 +757,64 @@ export default function ServiceDocumentsCategoryPage() {
         );
       }
 
+      // 📁 Subir también a Google Drive (no bloqueante, fire-and-forget)
+      if (fileUrl && serviceId) {
+        (async () => {
+          try {
+            const { data: docType } = await supabase
+              .from('documentation_type')
+              .select('category')
+              .eq('id', documentTypeId)
+              .single();
+
+            if (docType?.category) {
+              const { data: folderData } = await supabase
+                .from('gdrive_category_folders')
+                .select('folder_id')
+                .eq('service_id', parseInt(serviceId))
+                .eq('category', docType.category)
+                .maybeSingle();
+
+              if (folderData?.folder_id) {
+                console.log('📁 Subiendo fichero a Google Drive, carpeta:', folderData.folder_id);
+                const driveRes = await fetch('/.netlify/functions/google-drive-upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    fileUrl,
+                    fileName: file.name,
+                    mimeType: file.type || 'application/octet-stream',
+                    folderId: folderData.folder_id,
+                  }),
+                });
+                if (driveRes.ok) {
+                  const driveData = await driveRes.json();
+                  console.log('✅ Fichero subido a Google Drive:', driveData.driveFileId);
+                  // Guardar el ID del fichero en Drive en el documento del servicio actual
+                  if (driveData.driveFileId && insertedDocs) {
+                    const docForCurrentService = insertedDocs.find(
+                      (d: any) => d.service_id === parseInt(serviceId!)
+                    );
+                    if (docForCurrentService) {
+                      await supabase
+                        .from('documents')
+                        .update({ gdrive_file_id: driveData.driveFileId })
+                        .eq('id', docForCurrentService.id);
+                    }
+                  }
+                } else {
+                  console.warn('⚠️ Error al subir a Google Drive:', await driveRes.text());
+                }
+              } else {
+                console.warn('⚠️ No se encontró carpeta Drive para:', { serviceId, category: docType.category });
+              }
+            }
+          } catch (driveError) {
+            console.error('❌ Error subida Google Drive (no bloqueante):', driveError);
+          }
+        })();
+      }
+
       // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
       try {
         if (insertedDocs && insertedDocs.length > 0) {
@@ -880,10 +938,10 @@ export default function ServiceDocumentsCategoryPage() {
   const handleDeleteDocument = async (documentId: number, fileUrl?: string) => {
     if (!documentId || !service) return;
     try {
-      // Primero obtener el document_type_id del documento que se va a eliminar
+      // Primero obtener el document_type_id y gdrive_file_id del documento a eliminar
       const { data: docData, error: docError } = await supabase
         .from('documents')
-        .select('document_type_id')
+        .select('document_type_id, gdrive_file_id')
         .eq('id', documentId)
         .single();
       
@@ -906,6 +964,26 @@ export default function ServiceDocumentsCategoryPage() {
         .in('service_id', allServiceIds)
         .eq('document_type_id', documentTypeId);
       
+      // Eliminar de Google Drive si tenemos el ID del fichero (no bloqueante)
+      if (docData?.gdrive_file_id) {
+        (async () => {
+          try {
+            const driveRes = await fetch('/.netlify/functions/google-drive-delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId: docData.gdrive_file_id }),
+            });
+            if (driveRes.ok) {
+              console.log('✅ Fichero eliminado de Google Drive:', docData.gdrive_file_id);
+            } else {
+              console.warn('⚠️ Error al eliminar de Google Drive:', await driveRes.text());
+            }
+          } catch (driveError) {
+            console.error('❌ Error eliminando de Google Drive (no bloqueante):', driveError);
+          }
+        })();
+      }
+
       // Eliminar del storage si hay link
       if (fileUrl) {
         try {

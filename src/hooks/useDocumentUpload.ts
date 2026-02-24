@@ -64,6 +64,61 @@ export function useDocumentUpload() {
         .single();
       if (dbError) throw dbError;
 
+      // 📁 Subir también a Google Drive (no bloqueante, fire-and-forget)
+      if (file && link) {
+        (async () => {
+          try {
+            // Obtener categoría del tipo de documento
+            const { data: docType } = await supabase
+              .from('documentation_type')
+              .select('category')
+              .eq('id', documentTypeId)
+              .single();
+
+            if (docType?.category) {
+              // Buscar folder_id de Drive para (serviceId, category)
+              const { data: folderData } = await supabase
+                .from('gdrive_category_folders')
+                .select('folder_id')
+                .eq('service_id', serviceId)
+                .eq('category', docType.category)
+                .maybeSingle();
+
+              if (folderData?.folder_id) {
+                console.log('📁 Subiendo fichero a Google Drive, carpeta:', folderData.folder_id);
+                const driveRes = await fetch('/.netlify/functions/google-drive-upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    fileUrl: link,
+                    fileName: file.name,
+                    mimeType: file.type || 'application/octet-stream',
+                    folderId: folderData.folder_id,
+                  }),
+                });
+                if (driveRes.ok) {
+                  const driveData = await driveRes.json();
+                  console.log('✅ Fichero subido a Google Drive:', driveData.driveFileId);
+                  // Guardar el ID del fichero en Drive en la BD
+                  if (driveData.driveFileId && document?.id) {
+                    await supabase
+                      .from('documents')
+                      .update({ gdrive_file_id: driveData.driveFileId })
+                      .eq('id', document.id);
+                  }
+                } else {
+                  console.warn('⚠️ Error al subir a Google Drive:', await driveRes.text());
+                }
+              } else {
+                console.warn('⚠️ No se encontró carpeta Drive para:', { serviceId, category: docType.category });
+              }
+            }
+          } catch (driveError) {
+            console.error('❌ Error subida Google Drive (no bloqueante):', driveError);
+          }
+        })();
+      }
+
       // 🚀 NUEVA FUNCIONALIDAD: Sincronizar con HubSpot
       try {
         console.log('🔄 Sincronizando documento con HubSpot desde useDocumentUpload...', {
