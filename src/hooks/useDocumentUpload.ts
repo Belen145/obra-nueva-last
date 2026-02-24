@@ -71,7 +71,7 @@ export function useDocumentUpload() {
             // Obtener categoría del tipo de documento
             const { data: docType } = await supabase
               .from('documentation_type')
-              .select('category')
+              .select('category, name')
               .eq('id', documentTypeId)
               .single();
 
@@ -85,13 +85,18 @@ export function useDocumentUpload() {
                 .maybeSingle();
 
               if (folderData?.folder_id) {
+                const fileExt = file.name.split('.').pop();
+                const driveFileName = docType.name
+                  ? `${docType.name}.${fileExt}`
+                  : file.name;
+
                 console.log('📁 Subiendo fichero a Google Drive, carpeta:', folderData.folder_id);
                 const driveRes = await fetch('/.netlify/functions/google-drive-upload', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     fileUrl: link,
-                    fileName: file.name,
+                    fileName: driveFileName,
                     mimeType: file.type || 'application/octet-stream',
                     folderId: folderData.folder_id,
                   }),

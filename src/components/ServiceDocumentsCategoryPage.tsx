@@ -763,7 +763,7 @@ export default function ServiceDocumentsCategoryPage() {
           try {
             const { data: docType } = await supabase
               .from('documentation_type')
-              .select('category')
+              .select('category, name')
               .eq('id', documentTypeId)
               .single();
 
@@ -787,12 +787,17 @@ export default function ServiceDocumentsCategoryPage() {
                 if (additionalFolderIds.length > 0) {
                   console.log('📎 Carpetas adicionales (otros servicios):', additionalFolderIds);
                 }
+                const fileExt = file.name.split('.').pop();
+                const driveFileName = docType.name
+                  ? `${docType.name}.${fileExt}`
+                  : file.name;
+
                 const driveRes = await fetch('/.netlify/functions/google-drive-upload', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     fileUrl,
-                    fileName: file.name,
+                    fileName: driveFileName,
                     mimeType: file.type || 'application/octet-stream',
                     folderId: primaryFolder.folder_id,
                     additionalFolderIds,
